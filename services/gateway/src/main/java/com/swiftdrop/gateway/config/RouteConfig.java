@@ -40,8 +40,9 @@ public class RouteConfig {
     }
 
     /**
-     * Client IP. Behind the Next.js proxy every request comes from the web container, so use the last
-     * X-Forwarded-For hop (the one the proxy appended).
+     * Client IP: the last X-Forwarded-For hop (appended by the edge proxy / ingress; Next.js passes it through
+     * unchanged), else the socket address. Locally there is no edge proxy, so browser traffic arriving via the
+     * web container shares one bucket - the same as it would anyway behind Docker's NAT.
      */
     // ponytail: trusts X-Forwarded-For from anyone who can reach :8080; restrict gateway exposure to the proxy in production.
     @Bean
