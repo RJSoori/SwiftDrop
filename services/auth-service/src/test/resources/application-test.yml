@@ -1,0 +1,8 @@
+# Test-only values. The PII key is base64("swiftdrop-test-key-not-a-secret!"); JWT keys are left empty so an
+# ephemeral keypair is generated.
+swiftdrop:
+  auth:
+    pii-encryption-key: c3dpZnRkcm9wLXRlc3Qta2V5LW5vdC1hLXNlY3JldCE=
+  seed:
+    enabled: true
+    password: Seed-pass-123

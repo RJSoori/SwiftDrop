@@ -19,6 +19,7 @@
 
     <modules>
         <module>services/common-lib</module>
+        <module>services/auth-service</module>
     </modules>
 
     <properties>

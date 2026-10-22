@@ -1,0 +1,51 @@
+server:
+  port: 8081
+  # Trust X-Forwarded-* from the gateway / Next.js proxy when building absolute URLs.
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    username: ${DB_USERNAME:auth_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: auth
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: auth
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:not-configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
+            scope: openid, profile, email
+            # Absolute on purpose: the browser reaches us through Next.js -> gateway, so the
+            # callback must be the web app's origin, not whatever host this service sees.
+            redirect-uri: ${WEB_APP_URL:http://localhost:3000}/api/v1/auth/oauth2/callback/google
+
+swiftdrop:
+  auth:
+    issuer: ${JWT_ISSUER:http://auth-service:8081}
+    access-ttl: ${JWT_ACCESS_TTL:PT15M}
+    refresh-ttl: ${JWT_REFRESH_TTL:P7D}
+    cookie-secure: ${COOKIE_SECURE:false}
+    web-app-url: ${WEB_APP_URL:http://localhost:3000}
+    jwt-private-key: ${JWT_PRIVATE_KEY:}
+    jwt-public-key: ${JWT_PUBLIC_KEY:}
+    pii-encryption-key: ${PII_ENCRYPTION_KEY:}
+  seed:
+    enabled: ${SEED_DEMO_DATA:false}
+    password: ${SEED_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
