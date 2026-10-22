@@ -8,7 +8,7 @@ target/
 node_modules/
 .next/
 out/
-coverage/
+apps/web/coverage/
 *.log
 
 # ide
