@@ -1,0 +1,2 @@
+com.swiftdrop.common.web.CommonWebAutoConfiguration
+com.swiftdrop.common.security.CommonSecurityAutoConfiguration

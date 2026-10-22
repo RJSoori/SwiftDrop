@@ -1,0 +1,18 @@
+# secrets
+.env
+*.pem
+*.key
+
+# build
+target/
+node_modules/
+.next/
+out/
+coverage/
+*.log
+
+# ide
+.idea/
+.vscode/
+*.iml
+.DS_Store
