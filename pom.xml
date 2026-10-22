@@ -19,7 +19,13 @@
 
     <modules>
         <module>services/common-lib</module>
+        <module>services/gateway</module>
         <module>services/auth-service</module>
+        <module>services/parcel-service</module>
+        <module>services/dispatch-service</module>
+        <module>services/merchant-service</module>
+        <module>services/notification-service</module>
+        <module>services/coverage</module>
     </modules>
 
     <properties>

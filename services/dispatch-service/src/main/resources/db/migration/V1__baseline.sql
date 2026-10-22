@@ -1,0 +1,1 @@
+-- Baseline for the "dispatch" schema (owned by dispatch-service). Phase 2 tables go in V2__*.sql and later.

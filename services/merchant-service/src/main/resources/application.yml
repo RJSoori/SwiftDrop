@@ -1,0 +1,30 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: merchant-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    username: ${DB_USERNAME:merchant_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: merchant
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: merchant
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

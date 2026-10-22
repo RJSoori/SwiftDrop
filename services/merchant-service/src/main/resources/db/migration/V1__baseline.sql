@@ -1,0 +1,1 @@
+-- Baseline for the "merchant" schema (owned by merchant-service). Phase 2 tables go in V2__*.sql and later.

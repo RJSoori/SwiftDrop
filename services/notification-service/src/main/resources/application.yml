@@ -1,0 +1,34 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    username: ${DB_USERNAME:notification_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: notification
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: notification
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

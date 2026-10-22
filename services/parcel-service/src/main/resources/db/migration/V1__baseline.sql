@@ -1,0 +1,1 @@
+-- Baseline for the "parcel" schema (owned by parcel-service). Phase 2 tables go in V2__*.sql and later.

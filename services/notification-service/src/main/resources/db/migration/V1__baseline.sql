@@ -1,0 +1,1 @@
+-- Baseline for the "notification" schema (owned by notification-service). Phase 2 tables go in V2__*.sql and later.

@@ -2,10 +2,20 @@
 # All configuration comes from .env (see .env.example).
 name: swiftdrop
 
-x-spring-db: &spring-db
+# Shared by the Spring services. Each one sets SERVER_PORT, which the health check uses.
+x-spring-service: &spring-service
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${SERVER_PORT}/actuator/health || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 30
+    start_period: 60s
+
+x-spring-env: &spring-env
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
   JWKS_URI: http://auth-service:8081/.well-known/jwks.json
-  JWT_ISSUER: ${JWT_ISSUER}
+  JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8081}
 
 services:
   postgres:
@@ -73,6 +83,97 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+  auth-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: auth-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8081"
+      DB_USERNAME: auth_svc
+      DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?run scripts/dev-keys.sh}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?run scripts/dev-keys.sh}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-PT15M}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-P7D}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?run scripts/dev-keys.sh}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not-configured}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  parcel-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: parcel-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8082"
+      DB_USERNAME: parcel_svc
+      DB_PASSWORD: ${PARCEL_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  dispatch-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: dispatch-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8083"
+      DB_USERNAME: dispatch_svc
+      DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  merchant-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: merchant-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8084"
+      DB_USERNAME: merchant_svc
+      DB_PASSWORD: ${MERCHANT_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  notification-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: notification-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8085"
+      DB_USERNAME: notification_svc
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  gateway:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: gateway } }
+    environment:
+      SERVER_PORT: "8080"
+      JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8081}
+      REDIS_HOST: redis
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PARCEL_SERVICE_URL: http://parcel-service:8082
+      DISPATCH_SERVICE_URL: http://dispatch-service:8083
+      MERCHANT_SERVICE_URL: http://merchant-service:8084
+      CORS_ALLOWED_ORIGINS: ${WEB_APP_URL:-http://localhost:3000}
+    ports: ["8080:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      parcel-service: { condition: service_healthy }
+      dispatch-service: { condition: service_healthy }
+      merchant-service: { condition: service_healthy }
 
 volumes:
   pgdata:
