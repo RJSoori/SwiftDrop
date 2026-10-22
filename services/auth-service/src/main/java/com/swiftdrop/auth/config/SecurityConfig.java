@@ -1,15 +1,26 @@
 package com.swiftdrop.auth.config;
 
+import com.swiftdrop.auth.oauth.EncryptedCookieAuthorizationRequestRepository;
+import com.swiftdrop.auth.oauth.GoogleLoginHandlers;
 import com.swiftdrop.common.security.HeaderOrCookieBearerTokenResolver;
 import com.swiftdrop.common.security.ProblemDetailAuthHandler;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,6 +44,23 @@ public class SecurityConfig {
             PATHS.matcher("/actuator/health/**"),
             PATHS.matcher("/error"));
 
+    private static final OAuth2AuthorizedClientRepository DISCARD_AUTHORIZED_CLIENTS = new OAuth2AuthorizedClientRepository() {
+        @Override
+        public <T extends OAuth2AuthorizedClient> T loadAuthorizedClient(String id, Authentication principal, HttpServletRequest request) {
+            return null;
+        }
+
+        @Override
+        public void saveAuthorizedClient(OAuth2AuthorizedClient client, Authentication principal, HttpServletRequest request,
+                                         HttpServletResponse response) {
+        }
+
+        @Override
+        public void removeAuthorizedClient(String id, Authentication principal, HttpServletRequest request,
+                                           HttpServletResponse response) {
+        }
+    };
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
@@ -45,10 +73,22 @@ public class SecurityConfig {
         return request -> PUBLIC_ENDPOINTS.matches(request) ? null : delegate.resolve(request);
     }
 
+    /** Google sign-in starts at /api/v1/auth/oauth2/authorize/google and always uses PKCE (S256). */
+    @Bean
+    public OAuth2AuthorizationRequestResolver pkceAuthorizationRequestResolver(ClientRegistrationRepository registrations) {
+        DefaultOAuth2AuthorizationRequestResolver resolver =
+                new DefaultOAuth2AuthorizationRequestResolver(registrations, "/api/v1/auth/oauth2/authorize");
+        resolver.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
+        return resolver;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
-                                                   ProblemDetailAuthHandler authHandler) throws Exception {
+                                                   ProblemDetailAuthHandler authHandler,
+                                                   OAuth2AuthorizationRequestResolver pkceResolver,
+                                                   EncryptedCookieAuthorizationRequestRepository authRequestCookie,
+                                                   GoogleLoginHandlers googleLogin) throws Exception {
         // CSRF is off: stateless API, and the auth cookies are SameSite=Lax so other sites cannot POST with them.
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -61,6 +101,15 @@ public class SecurityConfig {
                         .bearerTokenResolver(tokenResolver)
                         .authenticationEntryPoint(authHandler)
                         .accessDeniedHandler(authHandler))
+                .oauth2Login(o -> o
+                        .authorizationEndpoint(a -> a
+                                .authorizationRequestResolver(pkceResolver)
+                                .authorizationRequestRepository(authRequestCookie))
+                        .redirectionEndpoint(r -> r.baseUri("/api/v1/auth/oauth2/callback/*"))
+                        // We issue our own tokens; Google's access token is not needed after login, so do not keep it.
+                        .authorizedClientRepository(DISCARD_AUTHORIZED_CLIENTS)
+                        .successHandler(googleLogin)
+                        .failureHandler(googleLogin))
                 .exceptionHandling(e -> e.authenticationEntryPoint(authHandler).accessDeniedHandler(authHandler));
         return http.build();
     }
