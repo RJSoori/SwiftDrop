@@ -14,7 +14,6 @@ apps/web/coverage/
 # ide
 .idea/
 .vscode/
-.claude/
 *.iml
 .DS_Store
 

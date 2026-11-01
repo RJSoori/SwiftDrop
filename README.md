@@ -34,8 +34,6 @@ flowchart LR
 | PostgreSQL 16 + PostGIS | 5432 | One login and one schema per service (`auth`, `parcel`, `dispatch`, `merchant`, `notification`) |
 | RabbitMQ | 5672, UI 15672 | Messaging (Phase 2) |
 | Redis | internal | Gateway rate limiting |
-| MinIO | 9000, console 9001 | Object storage (Phase 2) |
-| Mailpit | SMTP 1025, UI 8025 | Catches outgoing email in dev |
 
 **Stack:** Java 21, Spring Boot 3.5, Spring Cloud 2025.0, Maven multi-module. Next.js 15 (App Router), TypeScript,
 Tailwind CSS 4, shadcn/ui, React Hook Form + Zod, TanStack Query.
@@ -231,5 +229,3 @@ common-lib turns it into a ProblemDetail.
 - **A merchant sees approval after logging in again** (or at the next token refresh), because the status travels
   in the access token.
 - **The "Track a parcel" box is a placeholder** until parcel-service exists.
-- **MinIO:** the official `minio/minio` image was removed from Docker Hub, so compose uses the community build
-  `pgsty/minio`.
