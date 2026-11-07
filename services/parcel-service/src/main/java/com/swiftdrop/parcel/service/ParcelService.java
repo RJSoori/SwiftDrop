@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
@@ -117,7 +119,7 @@ public class ParcelService {
     @Transactional
     public ParcelResponse updateStatus(UUID parcelId, UpdateStatusRequest request, UUID actorId) {
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new NoSuchElementException("Parcel not found: " + parcelId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + parcelId));
 
         ParcelStatus current = parcel.getCurrentStatus();
         ParcelStatus target = request.status();
@@ -158,7 +160,7 @@ public class ParcelService {
     @Transactional
     public ParcelResponse assignCourier(UUID parcelId, UUID courierId, UUID actorId) {
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new NoSuchElementException("Parcel not found: " + parcelId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + parcelId));
 
         parcel.setCourierId(courierId);
         parcel = parcelRepository.save(parcel);
@@ -182,7 +184,7 @@ public class ParcelService {
     @Transactional(readOnly = true)
     public ParcelDetailResponse getParcelDetails(String trackingNo) {
         Parcel parcel = parcelRepository.findByTrackingNo(trackingNo)
-                .orElseThrow(() -> new NoSuchElementException("Parcel with tracking number not found: " + trackingNo));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel with tracking number not found: " + trackingNo));
         List<ParcelStatusHistory> history = historyRepository.findByParcelIdOrderByOccurredAtAsc(parcel.getId());
         return ParcelDetailResponse.of(parcel, history);
     }
@@ -191,7 +193,7 @@ public class ParcelService {
     public ParcelResponse getParcelById(UUID id) {
         return parcelRepository.findById(id)
                 .map(ParcelResponse::from)
-                .orElseThrow(() -> new NoSuchElementException("Parcel not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + id));
     }
 
     @Transactional(readOnly = true)
