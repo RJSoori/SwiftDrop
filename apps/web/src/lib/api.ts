@@ -92,3 +92,81 @@ export type MerchantApplication = {
   status: MerchantStatus;
   createdAt: string;
 };
+
+export type ParcelStatus =
+  | "CREATED"
+  | "PICKED_UP"
+  | "AT_ORIGIN_HUB"
+  | "IN_TRANSIT"
+  | "AT_DEST_HUB"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "FAILED"
+  | "RETURNED";
+
+export type ParcelResponse = {
+  id: string;
+  trackingNo: string;
+  customerId: string;
+  merchantId?: string;
+  courierId?: string;
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+  weightKg: number;
+  size: string;
+  feeLkr: number;
+  currentStatus: ParcelStatus;
+  pickupAddress: string;
+  dropoffAddress: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ParcelStatusHistory = {
+  id: string;
+  parcelId: string;
+  fromStatus?: ParcelStatus;
+  toStatus: ParcelStatus;
+  actorId?: string;
+  note?: string;
+  proofUrl?: string;
+  failureReason?: string;
+  occurredAt: string;
+};
+
+export type ParcelDetailResponse = {
+  parcel: ParcelResponse;
+  history: ParcelStatusHistory[];
+};
+
+export type QuoteRequest = {
+  weightKg?: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  strategy?: "WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS";
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+};
+
+export type QuoteResponse = {
+  feeLkr: number;
+  actualWeightKg: number;
+  volumetricWeightKg: number;
+  chargeableWeightKg: number;
+  strategy: string;
+};
+
+export type CreateParcelRequest = {
+  pickupAddress: string;
+  dropoffAddress: string;
+  weightKg: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  size?: string;
+  strategy?: "WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS";
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+  merchantId?: string;
+};

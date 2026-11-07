@@ -35,8 +35,9 @@ public class SecurityConfig {
 
     static final ServerWebExchangeMatcher PUBLIC_ENDPOINTS = new OrServerWebExchangeMatcher(
             ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST,
-                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh"),
-            ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, "/api/v1/auth/oauth2/**"),
+                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh",
+                    "/api/v1/parcels/quote"),
+            ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, "/api/v1/auth/oauth2/**", "/api/v1/parcels/track/**"),
             ServerWebExchangeMatchers.pathMatchers("/.well-known/**", "/actuator/health", "/actuator/health/**"));
 
     private static final String ACCESS_COOKIE = "sd_access";
