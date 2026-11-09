@@ -2,6 +2,7 @@ package com.swiftdrop.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -54,15 +55,23 @@ public class CommonSecurityAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    public InternalTokenAuthorizationManager internalTokenAuthorizationManager(@Value("${INTERNAL_TOKEN:}") String token) {
+        return new InternalTokenAuthorizationManager(token);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                           BearerTokenResolver tokenResolver,
-                                                          ProblemDetailAuthHandler authHandler) throws Exception {
+                                                          ProblemDetailAuthHandler authHandler,
+                                                          InternalTokenAuthorizationManager internalToken) throws Exception {
         // CSRF is off: no session, and the auth cookies are SameSite=Lax so other sites cannot POST with them.
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        .requestMatchers(InternalTokenAuthorizationManager.PATH_PATTERN).access(internalToken)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o
                         .jwt(j -> j.jwtAuthenticationConverter(jwtConverter))
