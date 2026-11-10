@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,13 +32,17 @@ public class ParcelController {
     }
 
     /**
-     * Creates a new parcel delivery order.
+     * Creates a new parcel delivery order with optional Idempotency-Key support.
      */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ParcelResponse> createParcel(@RequestBody CreateParcelRequest request) {
+    public ResponseEntity<ParcelResponse> createParcel(
+            @RequestBody CreateParcelRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         UUID callerId = CurrentUser.id();
-        ParcelResponse response = parcelService.createParcel(request, callerId);
+        ParcelResponse response = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? parcelService.createParcel(request, callerId, idempotencyKey)
+                : parcelService.createParcel(request, callerId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -51,13 +56,14 @@ public class ParcelController {
     }
 
     /**
-     * Authenticated parcel lookup by UUID.
+     * Authenticated parcel lookup by UUID with full history.
      */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ParcelResponse> getParcelById(@PathVariable UUID id) {
+    public ResponseEntity<ParcelDetailResponse> getParcelById(@PathVariable UUID id) {
         ParcelResponse parcel = parcelService.getParcelById(id);
-        return ResponseEntity.ok(parcel);
+        ParcelDetailResponse details = parcelService.getParcelDetails(parcel.trackingNo());
+        return ResponseEntity.ok(details);
     }
 
     /**
@@ -72,7 +78,7 @@ public class ParcelController {
         try {
             ParcelResponse updated = parcelService.updateStatus(id, request, actorId);
             return ResponseEntity.ok(updated);
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | ResponseStatusException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
@@ -91,9 +97,9 @@ public class ParcelController {
     }
 
     /**
-     * Lists parcels created by the currently authenticated customer.
+     * Lists parcels created by the currently authenticated customer (/mine or /my-parcels).
      */
-    @GetMapping("/my-parcels")
+    @GetMapping({"/mine", "/my-parcels"})
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ParcelResponse>> getMyParcels() {
         UUID callerId = CurrentUser.id();

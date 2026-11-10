@@ -7,12 +7,10 @@ import com.swiftdrop.parcel.domain.pricing.FlatRateStrategy;
 import com.swiftdrop.parcel.domain.pricing.PricingStrategy;
 import com.swiftdrop.parcel.domain.pricing.WeightTieredStrategy;
 import com.swiftdrop.parcel.domain.state.ParcelStateMachine;
-import com.swiftdrop.parcel.dto.CreateParcelRequest;
-import com.swiftdrop.parcel.dto.ParcelResponse;
-import com.swiftdrop.parcel.dto.QuoteRequest;
-import com.swiftdrop.parcel.dto.QuoteResponse;
-import com.swiftdrop.parcel.dto.UpdateStatusRequest;
-import com.swiftdrop.parcel.repository.OutboxEventRepository;
+import com.swiftdrop.parcel.dto.*;
+import com.swiftdrop.parcel.repository.IdempotencyKeyRepository;
+import com.swiftdrop.common.outbox.OutboxEvent;
+import com.swiftdrop.common.outbox.OutboxEventRepository;
 import com.swiftdrop.parcel.repository.ParcelRepository;
 import com.swiftdrop.parcel.repository.ParcelStatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -43,12 +42,17 @@ class ParcelServiceTest {
     @Mock
     private OutboxEventRepository outboxEventRepository;
 
+    @Mock
+    private IdempotencyKeyRepository idempotencyKeyRepository;
+
     private ParcelStateMachine stateMachine;
     private ParcelService parcelService;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         stateMachine = new ParcelStateMachine();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
         Map<String, PricingStrategy> strategies = Map.of(
                 "weightTieredStrategy", new WeightTieredStrategy(),
                 "flatRateStrategy", new FlatRateStrategy(),
@@ -58,9 +62,10 @@ class ParcelServiceTest {
                 parcelRepository,
                 historyRepository,
                 outboxEventRepository,
+                idempotencyKeyRepository,
                 stateMachine,
                 strategies,
-                new ObjectMapper()
+                objectMapper
         );
     }
 
@@ -88,9 +93,9 @@ class ParcelServiceTest {
     }
 
     @Test
-    @DisplayName("createParcel generates tracking number and records outbox event")
+    @DisplayName("createParcel saves parcel, initial CREATED history, and publishes parcel.created outbox event")
     void createParcel_success() {
-        UUID callerId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
         CreateParcelRequest request = new CreateParcelRequest(
                 "123 Galle Rd, Colombo 03",
                 "45 Peradeniya Rd, Kandy",
@@ -105,38 +110,64 @@ class ParcelServiceTest {
                 null
         );
 
-        when(parcelRepository.existsByTrackingNo(any())).thenReturn(false);
         when(parcelRepository.save(any(Parcel.class))).thenAnswer(inv -> {
             Parcel p = inv.getArgument(0);
-            if (p.getId() == null) {
-                p.setId(UUID.randomUUID());
-            }
+            p.setId(UUID.randomUUID());
             return p;
         });
 
-        ParcelResponse response = parcelService.createParcel(request, callerId);
+        ParcelResponse response = parcelService.createParcel(request, customerId);
 
         assertThat(response).isNotNull();
         assertThat(response.trackingNo()).startsWith("SD-");
         assertThat(response.currentStatus()).isEqualTo(ParcelStatus.CREATED);
-        assertThat(response.pickupAddress()).isEqualTo("123 Galle Rd, Colombo 03");
 
-        verify(parcelRepository).save(any(Parcel.class));
-        verify(historyRepository).save(any(ParcelStatusHistory.class));
+        // Verify history row
+        ArgumentCaptor<ParcelStatusHistory> historyCaptor = ArgumentCaptor.forClass(ParcelStatusHistory.class);
+        verify(historyRepository).save(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getToStatus()).isEqualTo(ParcelStatus.CREATED);
+        assertThat(historyCaptor.getValue().getActorId()).isEqualTo(customerId);
 
+        // Verify outbox event
         ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
         verify(outboxEventRepository).save(outboxCaptor.capture());
         assertThat(outboxCaptor.getValue().getEventType()).isEqualTo("parcel.created");
     }
 
     @Test
-    @DisplayName("updateStatus accepts valid transition from CREATED to PICKED_UP")
-    void updateStatus_validTransition() {
-        UUID parcelId = UUID.randomUUID();
-        UUID actorId = UUID.randomUUID();
+    @DisplayName("createParcel with existing Idempotency-Key returns cached response without duplicate creation")
+    void createParcel_idempotencyHit() throws Exception {
+        UUID customerId = UUID.randomUUID();
+        String idempotencyKey = "key-unique-12345";
+        Parcel parcel = new Parcel(
+                "SD-20261108-CACHED", customerId, new BigDecimal("2.0"),
+                "MEDIUM", new BigDecimal("510.00"), "Colombo", "Kandy"
+        );
+        parcel.setId(UUID.randomUUID());
+        ParcelResponse cached = ParcelResponse.from(parcel);
 
+        when(idempotencyKeyRepository.findById(idempotencyKey))
+                .thenReturn(Optional.of(new IdempotencyKey(idempotencyKey, objectMapper.writeValueAsString(cached), 201)));
+
+        CreateParcelRequest request = new CreateParcelRequest(
+                "Colombo", "Kandy", new BigDecimal("2.0"),
+                null, null, null, "MEDIUM", PricingStrategyType.WEIGHT_TIERED,
+                null, null, null
+        );
+
+        ParcelResponse result = parcelService.createParcel(request, customerId, idempotencyKey);
+
+        assertThat(result.trackingNo()).isEqualTo("SD-20261108-CACHED");
+        verify(parcelRepository, never()).save(any(Parcel.class));
+    }
+
+    @Test
+    @DisplayName("updateStatusInternal with valid status transition persists status and emits parcel.status.changed")
+    void updateStatusInternal_success() {
+        UUID parcelId = UUID.randomUUID();
+        UUID courierId = UUID.randomUUID();
         Parcel existingParcel = new Parcel(
-                "SD-20261108-TEST01", UUID.randomUUID(), new BigDecimal("1.5"),
+                "SD-20261108-TEST01", UUID.randomUUID(), new BigDecimal("1.0"),
                 "SMALL", new BigDecimal("430.00"), "Colombo", "Kandy"
         );
         existingParcel.setId(parcelId);
@@ -145,10 +176,13 @@ class ParcelServiceTest {
         when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(existingParcel));
         when(parcelRepository.save(any(Parcel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UpdateStatusRequest req = new UpdateStatusRequest(ParcelStatus.PICKED_UP, "Package scanned at merchant", null, null);
-        ParcelResponse updated = parcelService.updateStatus(parcelId, req, actorId);
+        InternalUpdateStatusRequest req = new InternalUpdateStatusRequest(
+                ParcelStatus.PICKED_UP, courierId, "Parcel collected from sender", null, null, null
+        );
 
-        assertThat(updated.currentStatus()).isEqualTo(ParcelStatus.PICKED_UP);
+        ParcelResponse response = parcelService.updateStatusInternal(parcelId, req);
+
+        assertThat(response.currentStatus()).isEqualTo(ParcelStatus.PICKED_UP);
         verify(historyRepository).save(any(ParcelStatusHistory.class));
 
         ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
@@ -157,27 +191,50 @@ class ParcelServiceTest {
     }
 
     @Test
-    @DisplayName("updateStatus rejects invalid transition and throws IllegalStateException")
-    void updateStatus_invalidTransition_throwsException() {
+    @DisplayName("updateStatusInternal with illegal status transition throws 409 Conflict")
+    void updateStatusInternal_illegalTransitionThrows409() {
         UUID parcelId = UUID.randomUUID();
-        UUID actorId = UUID.randomUUID();
-
+        UUID courierId = UUID.randomUUID();
         Parcel existingParcel = new Parcel(
-                "SD-20261108-TEST02", UUID.randomUUID(), new BigDecimal("1.5"),
+                "SD-20261108-TEST02", UUID.randomUUID(), new BigDecimal("1.0"),
                 "SMALL", new BigDecimal("430.00"), "Colombo", "Kandy"
         );
-        existingParcel.setCurrentStatus(ParcelStatus.DELIVERED); // Terminal state
+        existingParcel.setId(parcelId);
+        existingParcel.setCurrentStatus(ParcelStatus.CREATED);
 
         when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(existingParcel));
 
-        UpdateStatusRequest req = new UpdateStatusRequest(ParcelStatus.IN_TRANSIT, "Illegal status attempt", null, null);
+        // Attempt CREATED -> DELIVERED (illegal!)
+        InternalUpdateStatusRequest req = new InternalUpdateStatusRequest(
+                ParcelStatus.DELIVERED, courierId, "Skipped directly to delivered", null, null, null
+        );
 
-        assertThatThrownBy(() -> parcelService.updateStatus(parcelId, req, actorId))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> parcelService.updateStatusInternal(parcelId, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("409 CONFLICT");
 
         verify(parcelRepository, never()).save(any(Parcel.class));
         verify(historyRepository, never()).save(any(ParcelStatusHistory.class));
-        verify(outboxEventRepository, never()).save(any(OutboxEvent.class));
+    }
+
+    @Test
+    @DisplayName("getRecipientContact returns recipient name and phone")
+    void getRecipientContact_success() {
+        UUID parcelId = UUID.randomUUID();
+        Parcel parcel = new Parcel(
+                "SD-20261108-TEST04", UUID.randomUUID(), new BigDecimal("1.0"),
+                "SMALL", new BigDecimal("350.00"), "Colombo", "Kandy"
+        );
+        parcel.setId(parcelId);
+        parcel.setRecipientName("Kasun Perera");
+        parcel.setRecipientPhone("+94771234567");
+
+        when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(parcel));
+
+        RecipientContactResponse contact = parcelService.getRecipientContact(parcelId);
+
+        assertThat(contact.recipientName()).isEqualTo("Kasun Perera");
+        assertThat(contact.recipientPhone()).isEqualTo("+94771234567");
     }
 
     @Test

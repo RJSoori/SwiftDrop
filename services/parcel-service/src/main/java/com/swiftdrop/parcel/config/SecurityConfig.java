@@ -26,7 +26,11 @@ public class SecurityConfig {
 
     static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, "/api/v1/parcels/quote"),
+            PATHS.matcher(HttpMethod.POST, "/api/v1/quotes"),
             PATHS.matcher(HttpMethod.GET, "/api/v1/parcels/track/**"),
+            PATHS.matcher("/internal/**"),
+            PATHS.matcher("/swagger-ui/**"),
+            PATHS.matcher("/v3/api-docs/**"),
             PATHS.matcher("/actuator/health"),
             PATHS.matcher("/actuator/health/**"),
             PATHS.matcher("/actuator/info"),
@@ -48,13 +52,14 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .anyRequest().authenticated())
-                .oauth2ResourceServer(o -> o
-                        .jwt(j -> j.jwtAuthenticationConverter(jwtConverter))
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
                         .bearerTokenResolver(tokenResolver)
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
                         .authenticationEntryPoint(authHandler)
-                        .accessDeniedHandler(authHandler))
-                .exceptionHandling(e -> e.authenticationEntryPoint(authHandler).accessDeniedHandler(authHandler));
+                        .accessDeniedHandler(authHandler)
+                );
         return http.build();
     }
 }

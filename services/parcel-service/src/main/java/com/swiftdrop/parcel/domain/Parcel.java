@@ -6,8 +6,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Core Parcel Entity according to Table 14 of Appendix A.
- * Owned by M3 (Parcels & Pricing).
+ * Core Parcel Entity according to Phase 2 Specification.
+ * Owned by M3 (P.A.D.S.M. Appuhamy).
  */
 @Entity
 @Table(name = "parcels", schema = "parcel")
@@ -20,14 +20,38 @@ public class Parcel {
     @Column(name = "tracking_no", nullable = false, unique = true, length = 32)
     private String trackingNo;
 
+    @Column(name = "origin", nullable = false, length = 20)
+    private String origin = "CUSTOMER";
+
     @Column(name = "customer_id")
     private UUID customerId;
 
     @Column(name = "merchant_id")
     private UUID merchantId;
 
+    @Column(name = "merchant_order_ref", length = 100)
+    private String merchantOrderRef;
+
     @Column(name = "courier_id")
     private UUID courierId;
+
+    @Column(name = "pickup_city", length = 100)
+    private String pickupCity;
+
+    @Column(name = "pickup_lat", precision = 9, scale = 6)
+    private BigDecimal pickupLat;
+
+    @Column(name = "pickup_lng", precision = 9, scale = 6)
+    private BigDecimal pickupLng;
+
+    @Column(name = "dropoff_city", length = 100)
+    private String dropoffCity;
+
+    @Column(name = "dropoff_lat", precision = 9, scale = 6)
+    private BigDecimal dropoffLat;
+
+    @Column(name = "dropoff_lng", precision = 9, scale = 6)
+    private BigDecimal dropoffLng;
 
     @Column(name = "pickup_zone_id")
     private UUID pickupZoneId;
@@ -35,11 +59,29 @@ public class Parcel {
     @Column(name = "dropoff_zone_id")
     private UUID dropoffZoneId;
 
+    @Column(name = "recipient_name", length = 150)
+    private String recipientName;
+
+    @Column(name = "recipient_phone", length = 50)
+    private String recipientPhone;
+
     @Column(name = "weight_kg", nullable = false, precision = 6, scale = 2)
     private BigDecimal weightKg;
 
     @Column(name = "size", nullable = false, length = 20)
     private String size = "MEDIUM";
+
+    @Column(name = "length_cm", precision = 6, scale = 2)
+    private BigDecimal lengthCm;
+
+    @Column(name = "width_cm", precision = 6, scale = 2)
+    private BigDecimal widthCm;
+
+    @Column(name = "height_cm", precision = 6, scale = 2)
+    private BigDecimal heightCm;
+
+    @Column(name = "service_type", nullable = false, length = 30)
+    private String serviceType = "STANDARD";
 
     @Column(name = "fee_lkr", nullable = false, precision = 10, scale = 2)
     private BigDecimal feeLkr;
@@ -53,6 +95,10 @@ public class Parcel {
 
     @Column(name = "dropoff_address", nullable = false, columnDefinition = "text")
     private String dropoffAddress;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -73,6 +119,8 @@ public class Parcel {
         this.pickupAddress = pickupAddress;
         this.dropoffAddress = dropoffAddress;
         this.currentStatus = ParcelStatus.CREATED;
+        this.origin = "CUSTOMER";
+        this.serviceType = "STANDARD";
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }
@@ -93,6 +141,14 @@ public class Parcel {
         this.trackingNo = trackingNo;
     }
 
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
     public UUID getCustomerId() {
         return customerId;
     }
@@ -109,12 +165,68 @@ public class Parcel {
         this.merchantId = merchantId;
     }
 
+    public String getMerchantOrderRef() {
+        return merchantOrderRef;
+    }
+
+    public void setMerchantOrderRef(String merchantOrderRef) {
+        this.merchantOrderRef = merchantOrderRef;
+    }
+
     public UUID getCourierId() {
         return courierId;
     }
 
     public void setCourierId(UUID courierId) {
         this.courierId = courierId;
+    }
+
+    public String getPickupCity() {
+        return pickupCity;
+    }
+
+    public void setPickupCity(String pickupCity) {
+        this.pickupCity = pickupCity;
+    }
+
+    public BigDecimal getPickupLat() {
+        return pickupLat;
+    }
+
+    public void setPickupLat(BigDecimal pickupLat) {
+        this.pickupLat = pickupLat;
+    }
+
+    public BigDecimal getPickupLng() {
+        return pickupLng;
+    }
+
+    public void setPickupLng(BigDecimal pickupLng) {
+        this.pickupLng = pickupLng;
+    }
+
+    public String getDropoffCity() {
+        return dropoffCity;
+    }
+
+    public void setDropoffCity(String dropoffCity) {
+        this.dropoffCity = dropoffCity;
+    }
+
+    public BigDecimal getDropoffLat() {
+        return dropoffLat;
+    }
+
+    public void setDropoffLat(BigDecimal dropoffLat) {
+        this.dropoffLat = dropoffLat;
+    }
+
+    public BigDecimal getDropoffLng() {
+        return dropoffLng;
+    }
+
+    public void setDropoffLng(BigDecimal dropoffLng) {
+        this.dropoffLng = dropoffLng;
     }
 
     public UUID getPickupZoneId() {
@@ -133,6 +245,22 @@ public class Parcel {
         this.dropoffZoneId = dropoffZoneId;
     }
 
+    public String getRecipientName() {
+        return recipientName;
+    }
+
+    public void setRecipientName(String recipientName) {
+        this.recipientName = recipientName;
+    }
+
+    public String getRecipientPhone() {
+        return recipientPhone;
+    }
+
+    public void setRecipientPhone(String recipientPhone) {
+        this.recipientPhone = recipientPhone;
+    }
+
     public BigDecimal getWeightKg() {
         return weightKg;
     }
@@ -147,6 +275,38 @@ public class Parcel {
 
     public void setSize(String size) {
         this.size = size;
+    }
+
+    public BigDecimal getLengthCm() {
+        return lengthCm;
+    }
+
+    public void setLengthCm(BigDecimal lengthCm) {
+        this.lengthCm = lengthCm;
+    }
+
+    public BigDecimal getWidthCm() {
+        return widthCm;
+    }
+
+    public void setWidthCm(BigDecimal widthCm) {
+        this.widthCm = widthCm;
+    }
+
+    public BigDecimal getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(BigDecimal heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public String getServiceType() {
+        return serviceType;
+    }
+
+    public void setServiceType(String serviceType) {
+        this.serviceType = serviceType;
     }
 
     public BigDecimal getFeeLkr() {
@@ -179,6 +339,14 @@ public class Parcel {
 
     public void setDropoffAddress(String dropoffAddress) {
         this.dropoffAddress = dropoffAddress;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public Instant getCreatedAt() {

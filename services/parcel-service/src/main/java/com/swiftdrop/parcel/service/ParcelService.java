@@ -5,18 +5,21 @@ import com.swiftdrop.parcel.domain.*;
 import com.swiftdrop.parcel.domain.pricing.PricingStrategy;
 import com.swiftdrop.parcel.domain.state.ParcelStateMachine;
 import com.swiftdrop.parcel.dto.*;
-import com.swiftdrop.parcel.repository.OutboxEventRepository;
+import com.swiftdrop.parcel.repository.IdempotencyKeyRepository;
+import com.swiftdrop.common.outbox.OutboxEvent;
+import com.swiftdrop.common.outbox.OutboxEventRepository;
 import com.swiftdrop.parcel.repository.ParcelRepository;
 import com.swiftdrop.parcel.repository.ParcelStatusHistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -31,6 +34,7 @@ public class ParcelService {
     private final ParcelRepository parcelRepository;
     private final ParcelStatusHistoryRepository historyRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final ParcelStateMachine parcelStateMachine;
     private final Map<String, PricingStrategy> pricingStrategies;
     private final ObjectMapper objectMapper;
@@ -42,12 +46,14 @@ public class ParcelService {
     public ParcelService(ParcelRepository parcelRepository,
                          ParcelStatusHistoryRepository historyRepository,
                          OutboxEventRepository outboxEventRepository,
+                         IdempotencyKeyRepository idempotencyKeyRepository,
                          ParcelStateMachine parcelStateMachine,
                          Map<String, PricingStrategy> pricingStrategies,
                          ObjectMapper objectMapper) {
         this.parcelRepository = parcelRepository;
         this.historyRepository = historyRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.parcelStateMachine = parcelStateMachine;
         this.pricingStrategies = pricingStrategies;
         this.objectMapper = objectMapper;
@@ -69,10 +75,31 @@ public class ParcelService {
     }
 
     /**
-     * Creates a new parcel delivery, saves history record, and publishes an outbox event.
+     * Creates a customer parcel delivery order without idempotency key.
      */
     @Transactional
     public ParcelResponse createParcel(CreateParcelRequest request, UUID callerId) {
+        return createParcel(request, callerId, null);
+    }
+
+    /**
+     * Creates a customer parcel delivery order, optionally idempotent.
+     */
+    @Transactional
+    public ParcelResponse createParcel(CreateParcelRequest request, UUID callerId, String idempotencyKey) {
+        // Idempotency check: if key already exists, return cached response
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            Optional<IdempotencyKey> existing = idempotencyKeyRepository.findById(idempotencyKey);
+            if (existing.isPresent()) {
+                try {
+                    log.info("Idempotency hit for key {}", idempotencyKey);
+                    return objectMapper.readValue(existing.get().getResponseBody(), ParcelResponse.class);
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize cached idempotency response for key {}", idempotencyKey, e);
+                }
+            }
+        }
+
         QuoteRequest quoteReq = new QuoteRequest(
                 request.weightKg(), request.lengthCm(), request.widthCm(), request.heightCm(),
                 request.strategy(), request.pickupZoneId(), request.dropoffZoneId()
@@ -87,9 +114,23 @@ public class ParcelService {
                 trackingNo, customerId, quote.actualWeightKg(), request.size(),
                 quote.feeLkr(), request.pickupAddress(), request.dropoffAddress()
         );
+        parcel.setOrigin(merchantId != null ? "MERCHANT" : "CUSTOMER");
         parcel.setMerchantId(merchantId);
         parcel.setPickupZoneId(request.pickupZoneId());
         parcel.setDropoffZoneId(request.dropoffZoneId());
+        parcel.setPickupCity(request.pickupCity());
+        parcel.setPickupLat(request.pickupLat());
+        parcel.setPickupLng(request.pickupLng());
+        parcel.setDropoffCity(request.dropoffCity());
+        parcel.setDropoffLat(request.dropoffLat());
+        parcel.setDropoffLng(request.dropoffLng());
+        parcel.setRecipientName(request.recipientName());
+        parcel.setRecipientPhone(request.recipientPhone());
+        parcel.setLengthCm(request.lengthCm());
+        parcel.setWidthCm(request.widthCm());
+        parcel.setHeightCm(request.heightCm());
+        parcel.setServiceType(request.serviceType() != null ? request.serviceType() : "STANDARD");
+
         parcel = parcelRepository.save(parcel);
 
         // Append initial audit record to status_history
@@ -99,22 +140,189 @@ public class ParcelService {
         );
         historyRepository.save(initialHistory);
 
-        // Write transactional outbox event
+        // Write transactional outbox event (Section 4 Contract)
         recordOutboxEvent(parcel.getId(), "parcel.created", Map.of(
                 "parcelId", parcel.getId().toString(),
                 "trackingNo", parcel.getTrackingNo(),
-                "customerId", customerId != null ? customerId.toString() : "",
+                "origin", parcel.getOrigin(),
                 "merchantId", merchantId != null ? merchantId.toString() : "",
-                "status", parcel.getCurrentStatus().name(),
+                "pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : "",
+                "dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : "",
+                "pickupZoneId", parcel.getPickupZoneId() != null ? parcel.getPickupZoneId().toString() : "",
+                "weightKg", parcel.getWeightKg().toString(),
                 "feeLkr", parcel.getFeeLkr().toString()
         ));
 
+        ParcelResponse response = ParcelResponse.from(parcel);
+
+        // Save idempotency key if provided
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            try {
+                String responseBody = objectMapper.writeValueAsString(response);
+                idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKey, responseBody, 201));
+            } catch (Exception e) {
+                log.warn("Failed to persist idempotency key {}", idempotencyKey, e);
+            }
+        }
+
         log.info("Created parcel ID {} with tracking number {}", parcel.getId(), parcel.getTrackingNo());
+        return response;
+    }
+
+    /**
+     * Creates a parcel for merchants via internal REST API (POST /internal/v1/parcels).
+     */
+    @Transactional
+    public ParcelResponse createMerchantParcel(InternalCreateParcelRequest request) {
+        QuoteRequest quoteReq = new QuoteRequest(
+                request.weightKg(), request.lengthCm(), request.widthCm(), request.heightCm(),
+                request.strategy(), request.pickupZoneId(), request.dropoffZoneId()
+        );
+        QuoteResponse quote = calculateQuote(quoteReq);
+
+        String trackingNo = generateUniqueTrackingNumber();
+
+        Parcel parcel = new Parcel(
+                trackingNo, null, quote.actualWeightKg(), request.size(),
+                quote.feeLkr(), request.pickupAddress(), request.dropoffAddress()
+        );
+        parcel.setOrigin("MERCHANT");
+        parcel.setMerchantId(request.merchantId());
+        parcel.setMerchantOrderRef(request.merchantOrderRef());
+        parcel.setPickupZoneId(request.pickupZoneId());
+        parcel.setDropoffZoneId(request.dropoffZoneId());
+        parcel.setPickupCity(request.pickupCity());
+        parcel.setPickupLat(request.pickupLat());
+        parcel.setPickupLng(request.pickupLng());
+        parcel.setDropoffCity(request.dropoffCity());
+        parcel.setDropoffLat(request.dropoffLat());
+        parcel.setDropoffLng(request.dropoffLng());
+        parcel.setRecipientName(request.recipientName());
+        parcel.setRecipientPhone(request.recipientPhone());
+        parcel.setLengthCm(request.lengthCm());
+        parcel.setWidthCm(request.widthCm());
+        parcel.setHeightCm(request.heightCm());
+        parcel.setServiceType(request.serviceType() != null ? request.serviceType() : "STANDARD");
+
+        parcel = parcelRepository.save(parcel);
+
+        ParcelStatusHistory initialHistory = new ParcelStatusHistory(
+                parcel.getId(), null, ParcelStatus.CREATED, request.merchantId(),
+                "Merchant order created via internal API", null, null
+        );
+        historyRepository.save(initialHistory);
+
+        recordOutboxEvent(parcel.getId(), "parcel.created", Map.of(
+                "parcelId", parcel.getId().toString(),
+                "trackingNo", parcel.getTrackingNo(),
+                "origin", "MERCHANT",
+                "merchantId", request.merchantId() != null ? request.merchantId().toString() : "",
+                "merchantOrderRef", request.merchantOrderRef() != null ? request.merchantOrderRef() : "",
+                "pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : "",
+                "dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : "",
+                "pickupZoneId", parcel.getPickupZoneId() != null ? parcel.getPickupZoneId().toString() : "",
+                "weightKg", parcel.getWeightKg().toString(),
+                "feeLkr", parcel.getFeeLkr().toString()
+        ));
+
+        log.info("Created merchant parcel ID {} with tracking number {}", parcel.getId(), parcel.getTrackingNo());
         return ParcelResponse.from(parcel);
     }
 
     /**
-     * Updates parcel status according to the finite state machine transitions.
+     * Internal status transition endpoint (POST /internal/v1/parcels/{id}/status).
+     * Used by M9 Courier and other services. Throws 409 Conflict on illegal moves.
+     */
+    @Transactional
+    public ParcelResponse updateStatusInternal(UUID parcelId, InternalUpdateStatusRequest request) {
+        Parcel parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + parcelId));
+
+        if (request.expectedVersion() != null && !Objects.equals(request.expectedVersion(), parcel.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Version conflict: expected " + request.expectedVersion() + " but current is " + parcel.getVersion());
+        }
+
+        ParcelStatus current = parcel.getCurrentStatus();
+        ParcelStatus target = request.toStatus();
+
+        if (target == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target status must not be null");
+        }
+
+        // Validate state transition through ParcelStateMachine
+        try {
+            parcelStateMachine.transition(current, target);
+        } catch (IllegalStateException e) {
+            log.warn("Illegal status transition attempt for parcel {} from {} to {}", parcelId, current, target);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Illegal status transition from " + current + " to " + target);
+        }
+
+        parcel.setCurrentStatus(target);
+        parcel = parcelRepository.save(parcel);
+
+        ParcelStatusHistory history = new ParcelStatusHistory(
+                parcel.getId(), current, target, request.actorId(),
+                request.note(), request.proofUrl(), request.reasonCode()
+        );
+        historyRepository.save(history);
+
+        // Section 4 Event Contract: parcel.status.changed
+        recordOutboxEvent(parcel.getId(), "parcel.status.changed", Map.of(
+                "parcelId", parcel.getId().toString(),
+                "trackingNo", parcel.getTrackingNo(),
+                "merchantId", parcel.getMerchantId() != null ? parcel.getMerchantId().toString() : "",
+                "fromStatus", current.name(),
+                "toStatus", target.name(),
+                "aggregateVersion", parcel.getVersion() != null ? parcel.getVersion().toString() : "0",
+                "reasonCode", request.reasonCode() != null ? request.reasonCode() : "",
+                "occurredAt", Instant.now().toString()
+        ));
+
+        log.info("Internal updated parcel {} status from {} to {}", parcel.getTrackingNo(), current, target);
+        return ParcelResponse.from(parcel);
+    }
+
+    /**
+     * Returns recipient contact details (name and phone) for M5 and M9.
+     */
+    @Transactional(readOnly = true)
+    public RecipientContactResponse getRecipientContact(UUID parcelId) {
+        Parcel parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + parcelId));
+
+        return new RecipientContactResponse(
+                parcel.getRecipientName() != null ? parcel.getRecipientName() : "Customer",
+                parcel.getRecipientPhone() != null ? parcel.getRecipientPhone() : ""
+        );
+    }
+
+    /**
+     * Sets assigned courier from RabbitMQ parcel.assigned event.
+     */
+    @Transactional
+    public void setAssignedCourier(UUID parcelId, UUID courierId) {
+        Optional<Parcel> opt = parcelRepository.findById(parcelId);
+        if (opt.isEmpty()) {
+            log.warn("Received parcel.assigned for non-existent parcel {}", parcelId);
+            return;
+        }
+
+        Parcel parcel = opt.get();
+        parcel.setCourierId(courierId);
+        parcelRepository.save(parcel);
+
+        ParcelStatusHistory history = new ParcelStatusHistory(
+                parcel.getId(), parcel.getCurrentStatus(), parcel.getCurrentStatus(), courierId,
+                "Assigned to courier: " + courierId, null, null
+        );
+        historyRepository.save(history);
+
+        log.info("Updated parcel {} courier assignment to {}", parcel.getTrackingNo(), courierId);
+    }
+
+    /**
+     * Updates parcel status according to the finite state machine transitions (Public/User API).
      */
     @Transactional
     public ParcelResponse updateStatus(UUID parcelId, UpdateStatusRequest request, UUID actorId) {
@@ -129,19 +337,21 @@ public class ParcelService {
         }
 
         // Validate state transition through ParcelStateMachine
-        parcelStateMachine.transition(current, target);
+        try {
+            parcelStateMachine.transition(current, target);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Illegal status transition: " + e.getMessage());
+        }
 
         parcel.setCurrentStatus(target);
         parcel = parcelRepository.save(parcel);
 
-        // Append to history table
         ParcelStatusHistory history = new ParcelStatusHistory(
                 parcel.getId(), current, target, actorId,
                 request.note(), request.proofUrl(), request.failureReason()
         );
         historyRepository.save(history);
 
-        // Write transactional outbox event
         recordOutboxEvent(parcel.getId(), "parcel.status.changed", Map.of(
                 "parcelId", parcel.getId().toString(),
                 "trackingNo", parcel.getTrackingNo(),
@@ -154,9 +364,6 @@ public class ParcelService {
         return ParcelResponse.from(parcel);
     }
 
-    /**
-     * Assigns a courier to an unassigned parcel.
-     */
     @Transactional
     public ParcelResponse assignCourier(UUID parcelId, UUID courierId, UUID actorId) {
         Parcel parcel = parcelRepository.findById(parcelId)
