@@ -16,6 +16,7 @@ x-spring-env: &spring-env
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
   JWKS_URI: http://auth-service:8081/.well-known/jwks.json
   JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8081}
+  INTERNAL_TOKEN: ${INTERNAL_TOKEN:?run scripts/dev-keys.sh}
 
 services:
   postgres:

@@ -1,4 +1,4 @@
-package com.swiftdrop.parcel.domain;
+package com.swiftdrop.common.outbox;
 
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -7,9 +7,11 @@ import java.util.UUID;
 /**
  * Transactional Outbox entity storing domain events before asynchronous RabbitMQ relay.
  * Modeled according to Table 16 in Appendix A.
+ * No schema is set: each service maps it into its own schema via {@code hibernate.default_schema}
+ * and creates the table in its own Flyway migration.
  */
 @Entity
-@Table(name = "outbox_events", schema = "parcel")
+@Table(name = "outbox_events")
 public class OutboxEvent {
 
     @Id

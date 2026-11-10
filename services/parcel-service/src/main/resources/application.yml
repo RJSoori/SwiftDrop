@@ -23,6 +23,11 @@ spring:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
 
+# Shared transactional outbox from common-lib (relay polls parcel.outbox_events)
+swiftdrop:
+  outbox:
+    enabled: true
+
 management:
   endpoints:
     web:
