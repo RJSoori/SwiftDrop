@@ -15,7 +15,7 @@ public class Parcel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id = UUID.randomUUID();
+    private UUID id;
 
     @Column(name = "tracking_no", nullable = false, unique = true, length = 32)
     private String trackingNo;

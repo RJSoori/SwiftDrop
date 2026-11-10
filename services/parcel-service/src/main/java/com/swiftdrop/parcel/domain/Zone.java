@@ -13,7 +13,7 @@ public class Zone {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id = UUID.randomUUID();
+    private UUID id;
 
     @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;

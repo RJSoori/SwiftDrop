@@ -15,7 +15,7 @@ public class PricingRule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id = UUID.randomUUID();
+    private UUID id;
 
     @Column(name = "zone_id", nullable = false)
     private UUID zoneId;

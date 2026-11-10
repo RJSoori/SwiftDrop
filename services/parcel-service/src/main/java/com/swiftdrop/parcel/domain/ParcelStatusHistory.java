@@ -14,7 +14,7 @@ public class ParcelStatusHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id = UUID.randomUUID();
+    private UUID id;
 
     @Column(name = "parcel_id", nullable = false)
     private UUID parcelId;
