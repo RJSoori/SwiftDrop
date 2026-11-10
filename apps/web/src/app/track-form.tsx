@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { api, ApiError, type ParcelDetailResponse, type ParcelStatus } from "@/lib/api";
@@ -27,16 +28,13 @@ function formatStatus(status: ParcelStatus): string {
 }
 
 export function TrackForm() {
+  const searchParams = useSearchParams();
   const [waybill, setWaybill] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ParcelDetailResponse | null>(null);
 
-  async function handleTrack(e: React.FormEvent) {
-    e.preventDefault();
-    const query = waybill.trim();
-    if (!query) return;
-
+  const fetchTrackDetails = useCallback(async (query: string) => {
     setLoading(true);
     setError(null);
     setDetail(null);
@@ -53,6 +51,21 @@ export function TrackForm() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const trackParam = searchParams.get("track")?.trim();
+    if (trackParam) {
+      setWaybill(trackParam);
+      fetchTrackDetails(trackParam);
+    }
+  }, [searchParams, fetchTrackDetails]);
+
+  async function handleTrack(e: React.FormEvent) {
+    e.preventDefault();
+    const query = waybill.trim();
+    if (!query) return;
+    await fetchTrackDetails(query);
   }
 
   function handleReset() {
