@@ -26,6 +26,8 @@ swiftdrop:
     realtime: ${REALTIME_SERVICE_URL:http://realtime-service:8086}
     reporting: ${REPORTING_SERVICE_URL:http://reporting-service:8087}
     assistant: ${AI_ASSISTANT_SERVICE_URL:http://ai-assistant-service:8088}
+  # Sent as X-Internal-Token when introspecting merchant API keys
+  internal-token: ${INTERNAL_TOKEN:}
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 management:
