@@ -87,7 +87,7 @@ export default function CustomerDashboard() {
 
   const quoteMutation = useMutation({
     mutationFn: (req: QuoteRequest) =>
-      api<QuoteResponse>("/quotes", {
+      api<QuoteResponse>("/parcels/quote", {
         method: "POST",
         json: req,
       }),
