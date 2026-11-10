@@ -303,10 +303,10 @@ export default function CustomerDashboard() {
                           id="pickupCity"
                           value={pickupCity}
                           onChange={(e) => setPickupCity(e.target.value)}
-                          className="mt-1 flex h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                          className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                         >
                           {SRI_LANKA_CITIES.map((c) => (
-                            <option key={`pickup-${c.name}`} value={c.name}>
+                            <option key={`pickup-${c.name}`} value={c.name} className="bg-card text-foreground">
                               {c.name} ({c.province})
                             </option>
                           ))}
@@ -318,10 +318,10 @@ export default function CustomerDashboard() {
                           id="dropoffCity"
                           value={dropoffCity}
                           onChange={(e) => setDropoffCity(e.target.value)}
-                          className="mt-1 flex h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                          className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                         >
                           {SRI_LANKA_CITIES.map((c) => (
-                            <option key={`dropoff-${c.name}`} value={c.name}>
+                            <option key={`dropoff-${c.name}`} value={c.name} className="bg-card text-foreground">
                               {c.name} ({c.province})
                             </option>
                           ))}
@@ -404,11 +404,11 @@ export default function CustomerDashboard() {
                         id="size"
                         value={size}
                         onChange={(e) => setSize(e.target.value)}
-                        className="mt-1 flex h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                        className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                       >
-                        <option value="SMALL">Small</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="LARGE">Large</option>
+                        <option value="SMALL" className="bg-card text-foreground">Small</option>
+                        <option value="MEDIUM" className="bg-card text-foreground">Medium</option>
+                        <option value="LARGE" className="bg-card text-foreground">Large</option>
                       </select>
                     </div>
                     <div>
@@ -420,10 +420,10 @@ export default function CustomerDashboard() {
                           setServiceType(e.target.value as "STANDARD" | "EXPRESS");
                           setQuote(null);
                         }}
-                        className="mt-1 flex h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                        className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                       >
-                        <option value="STANDARD">Standard</option>
-                        <option value="EXPRESS">Express (Priority)</option>
+                        <option value="STANDARD" className="bg-card text-foreground">Standard</option>
+                        <option value="EXPRESS" className="bg-card text-foreground">Express (Priority)</option>
                       </select>
                     </div>
                   </div>

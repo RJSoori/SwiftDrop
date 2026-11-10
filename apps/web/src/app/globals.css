@@ -50,6 +50,7 @@
 }
 
 :root {
+  color-scheme: light;
   /* SwiftDrop palette: carbon-copy ink blue (brand), parcel-tape amber, cool paper and ink. */
   --brand: #2f3bd1;
   --tape: #f2b200;
@@ -89,6 +90,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --brand: #8c95ff;
     --background: #0f1226;
     --foreground: #e8eaf6;
@@ -148,6 +150,13 @@
   html {
     @apply font-sans;
     color-scheme: light dark;
+  }
+  select {
+    color-scheme: light dark;
+  }
+  select option {
+    background-color: var(--card);
+    color: var(--card-foreground);
   }
   .tabular {
     font-variant-numeric: tabular-nums;
