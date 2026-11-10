@@ -70,7 +70,7 @@ export default function CustomerDashboard() {
   const [weightKg, setWeightKg] = useState("1.5");
   const [size, setSize] = useState("MEDIUM");
   const [serviceType, setServiceType] = useState<"STANDARD" | "EXPRESS">("STANDARD");
-  const [strategy, setStrategy] = useState<"WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS">("WEIGHT_TIERED");
+  const strategy = serviceType === "EXPRESS" ? "EXPRESS" : "WEIGHT_TIERED";
   const [lengthCm, setLengthCm] = useState("20");
   const [widthCm, setWidthCm] = useState("15");
   const [heightCm, setHeightCm] = useState("10");
