@@ -1,0 +1,1 @@
+-- Baseline for the "realtime" schema (owned by realtime-service). Phase 2 tables go in V2__*.sql and later.

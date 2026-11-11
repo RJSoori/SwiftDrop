@@ -25,6 +25,9 @@
         <module>services/dispatch-service</module>
         <module>services/merchant-service</module>
         <module>services/notification-service</module>
+        <module>services/realtime-service</module>
+        <module>services/reporting-service</module>
+        <module>services/ai-assistant-service</module>
         <module>services/coverage</module>
     </modules>
 
