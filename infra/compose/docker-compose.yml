@@ -142,6 +142,7 @@ services:
       PARCEL_SERVICE_URL: http://parcel-service:8082
       DISPATCH_SERVICE_URL: http://dispatch-service:8083
       MERCHANT_SERVICE_URL: http://merchant-service:8084
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?run scripts/dev-keys.sh}
       CORS_ALLOWED_ORIGINS: ${WEB_APP_URL:-http://localhost:3000}
     ports: ["8080:8080"]
     depends_on:
