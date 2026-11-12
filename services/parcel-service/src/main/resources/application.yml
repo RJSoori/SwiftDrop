@@ -23,9 +23,9 @@ spring:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
   rabbitmq:
-    host: ${RABBITMQ_HOST:rabbitmq}
-    username: ${RABBITMQ_USER:swiftdrop}
-    password: ${RABBITMQ_PASSWORD:0e3efa25dd4d117f8d267dedd00ca128}
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 # Shared transactional outbox from common-lib (relay polls parcel.outbox_events)
 swiftdrop:
