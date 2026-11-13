@@ -36,6 +36,8 @@ spring:
 swiftdrop:
   outbox:
     enabled: true
+  seed:
+    enabled: ${SEED_DEMO_DATA:false}
   courier:
     otp-ttl: ${COURIER_OTP_TTL:PT24H}
     otp-max-attempts: ${COURIER_OTP_MAX_ATTEMPTS:5}
