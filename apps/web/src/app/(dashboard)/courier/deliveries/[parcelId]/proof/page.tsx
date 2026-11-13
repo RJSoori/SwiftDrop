@@ -4,8 +4,10 @@ import Image from "next/image";
 import { ArrowLeft, Camera, Check, Upload } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FormError } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, api } from "@/lib/api";
@@ -82,7 +84,7 @@ export default function CourierPhotoProofPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <Button
         variant="outline"
         onClick={() => router.push(`/courier/deliveries/${encodeURIComponent(parcelId)}`)}
@@ -94,106 +96,104 @@ export default function CourierPhotoProofPage() {
 
       <PageHeading title="Photo proof" intro="Take or choose a clear JPEG or PNG photo for this delivery." />
 
-      <section className="mt-6 grid gap-5 rounded-xl border bg-card p-4 sm:p-6">
-        <div>
-          <p className="text-sm text-muted-foreground">Parcel</p>
-          <p className="mt-1 break-all font-medium tabular">{parcelId}</p>
-        </div>
+      <Card className="mt-8 max-w-xl border-2 shadow-sm">
+        <CardContent className="grid gap-5">
+          <div>
+            <p className="text-sm text-muted-foreground">Parcel</p>
+            <p className="mt-1 break-all font-medium tabular">{parcelId}</p>
+          </div>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="proof-photo">Take a photo</Label>
-          <Input
-            key={file ? "selected" : "empty"}
-            id="proof-photo"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            disabled={isUploading}
-            aria-invalid={!!fileError}
-            aria-describedby={fileError ? "proof-photo-error" : "proof-photo-hint"}
-            className="h-auto min-h-11 cursor-pointer px-3 py-2 file:mr-3 file:rounded-md file:bg-muted file:px-3 file:py-1.5"
-            onChange={(event) => {
-              const nextFile = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              chooseFile(nextFile);
-            }}
-          />
-          {fileError ? (
-            <p id="proof-photo-error" role="alert" className="text-sm text-destructive">
-              {fileError}
-            </p>
-          ) : (
-            <p id="proof-photo-hint" className="text-sm text-muted-foreground">
-              JPEG or PNG, up to 5 MB.
-            </p>
-          )}
-        </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="proof-photo">Take a photo</Label>
+            <Input
+              key={file ? "selected" : "empty"}
+              id="proof-photo"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={isUploading}
+              aria-invalid={!!fileError}
+              aria-describedby={fileError ? "proof-photo-error" : "proof-photo-hint"}
+              className="h-auto min-h-11 cursor-pointer px-3 py-2 file:mr-3 file:rounded-md file:bg-muted file:px-3 file:py-1.5"
+              onChange={(event) => {
+                const nextFile = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                chooseFile(nextFile);
+              }}
+            />
+            {fileError ? (
+              <p id="proof-photo-error" role="alert" className="text-sm text-destructive">
+                {fileError}
+              </p>
+            ) : (
+              <p id="proof-photo-hint" className="text-sm text-muted-foreground">
+                JPEG or PNG, up to 5 MB.
+              </p>
+            )}
+          </div>
 
-        {previewUrl && file && (
-          <div className="grid gap-3">
-            <div className="overflow-hidden rounded-lg border bg-muted">
-              <Image
-                src={previewUrl}
-                alt="Selected photo proof preview"
-                width={1280}
-                height={960}
-                unoptimized
-                className="max-h-80 w-full object-contain"
-              />
+          {previewUrl && file && (
+            <div className="grid gap-3">
+              <div className="overflow-hidden rounded-lg border bg-muted">
+                <Image
+                  src={previewUrl}
+                  alt="Selected photo proof preview"
+                  width={1280}
+                  height={960}
+                  unoptimized
+                  className="max-h-80 w-full object-contain"
+                />
+              </div>
+              <p className="break-all text-sm text-muted-foreground">
+                {file.name} · {(file.size / (1024 * 1024)).toFixed(2)} MB
+              </p>
             </div>
-            <p className="break-all text-sm text-muted-foreground">
-              {file.name} · {(file.size / (1024 * 1024)).toFixed(2)} MB
-            </p>
-          </div>
-        )}
+          )}
 
-        {uploadError && (
-          <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {uploadError}
-          </div>
-        )}
+          {uploadError && <FormError message={uploadError} />}
 
-        {proofId && (
-          <div role="status" className="rounded-md border border-emerald-600/25 bg-emerald-600/10 px-3 py-3">
-            <p className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-200">
-              <Check aria-hidden className="size-4" />
-              Photo proof uploaded.
-            </p>
+          {proofId && (
+            <div role="status" className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm">
+              <p className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-200">
+                <Check aria-hidden className="size-4" />
+                Photo proof uploaded.
+              </p>
+              <Button
+                onClick={() =>
+                  router.push(
+                    `/courier/deliveries/${encodeURIComponent(parcelId)}/otp?proofId=${encodeURIComponent(proofId)}`,
+                  )
+                }
+                className="mt-3 min-h-11 w-full"
+              >
+                Continue to OTP
+              </Button>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
             <Button
-              onClick={() =>
-                router.push(
-                  `/courier/deliveries/${encodeURIComponent(parcelId)}/otp?proofId=${encodeURIComponent(proofId)}`,
-                )
-              }
-              className="mt-3 min-h-11 w-full"
+              type="button"
+              onClick={() => void uploadPhoto()}
+              disabled={!file || isUploading || !!proofId}
+              className="min-h-11 w-full"
             >
-              Continue to OTP
+              <Upload aria-hidden />
+              {isUploading ? "Uploading…" : "Upload photo"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={retakePhoto}
+              disabled={(!file && !fileError && !uploadError) || isUploading}
+              className="min-h-11 w-full"
+            >
+              <Camera aria-hidden />
+              Retake photo
             </Button>
           </div>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Button
-            type="button"
-            onClick={() => void uploadPhoto()}
-            disabled={!file || isUploading || !!proofId}
-            className="min-h-11 w-full"
-          >
-            <Upload aria-hidden />
-            {isUploading ? "Uploading…" : "Upload photo"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={retakePhoto}
-            disabled={(!file && !fileError && !uploadError) || isUploading}
-            className="min-h-11 w-full"
-          >
-            <Camera aria-hidden />
-            Retake photo
-          </Button>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }
