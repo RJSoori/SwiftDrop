@@ -142,6 +142,8 @@ services:
     environment:
       <<: *spring-env
       SERVER_PORT: "8083"
+      AUTH_SERVICE_URL: http://auth-service:8081
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DB_USERNAME: dispatch_svc
       DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
       PARCEL_SERVICE_URL: http://parcel-service:8082
@@ -152,6 +154,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_PROOFS: ${MINIO_BUCKET_PROOFS:-proofs}
     depends_on:
+      auth-service: { condition: service_healthy }
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       minio: { condition: service_healthy }
