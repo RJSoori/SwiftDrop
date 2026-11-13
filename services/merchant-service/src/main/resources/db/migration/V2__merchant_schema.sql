@@ -56,3 +56,4 @@ CREATE TABLE IF NOT EXISTS merchant.idempotency_keys (
 );
 
 CREATE INDEX IF NOT EXISTS idx_merchant_idempotency_created_at ON merchant.idempotency_keys(created_at);
+

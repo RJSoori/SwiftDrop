@@ -22,9 +22,24 @@ spring:
         jwt:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+PARCEL_SERVICE_URL: ${PARCEL_SERVICE_URL:http://localhost:8082}
+PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:}
+WEBHOOK_RETRY_DELAYS: ${WEBHOOK_RETRY_DELAYS:PT5S,PT10S,PT20S,PT40S}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  health:
+    rabbit:
+      enabled: false
