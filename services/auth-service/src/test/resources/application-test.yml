@@ -1,5 +1,8 @@
 # Test-only values. The PII key is base64("swiftdrop-test-key-not-a-secret!"); JWT keys are left empty so an
 # ephemeral keypair is generated.
+# Shared secret for /internal/** (InternalTokenAuthorizationManager reads ${INTERNAL_TOKEN}).
+INTERNAL_TOKEN: test-internal-token
+
 swiftdrop:
   auth:
     pii-encryption-key: c3dpZnRkcm9wLXRlc3Qta2V5LW5vdC1hLXNlY3JldCE=
