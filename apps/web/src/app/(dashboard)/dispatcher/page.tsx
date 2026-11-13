@@ -15,7 +15,7 @@ type Parcel = {
   status: string;
   courierId?: string;
 };
-type Page<T> = { content: T[]; totalElements: number };
+type Page<T> = { content: T[]; number: number; totalPages: number; totalElements: number };
 type Courier = {
   userId: string;
   fullName: string;
@@ -26,18 +26,23 @@ type Courier = {
 export default function DispatcherDashboard() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState("");
+  const [courierId, setCourierId] = useState("");
+  const [page, setPage] = useState(0);
   const [message, setMessage] = useState<string>();
   const parcels = useQuery({
-    queryKey: ["dispatch", "parcels", status],
-    queryFn: () => api<Page<Parcel>>(status === "ALL"
-      ? "/dispatch/parcels"
-      : status
-        ? `/dispatch/parcels?status=${status}`
-        : "/dispatch/parcels/unassigned"),
+    queryKey: ["dispatch", "parcels", status, courierId, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), size: "10" });
+      if (status && status !== "ALL") params.set("status", status);
+      if (courierId) params.set("courierId", courierId);
+      return api<Page<Parcel>>(`/dispatch/parcels${status || courierId ? `?${params}` : `/unassigned?${params}`}`);
+    },
+    refetchInterval: 10_000,
   });
   const couriers = useQuery({
     queryKey: ["dispatch", "workloads"],
     queryFn: () => api<Courier[]>("/dispatch/couriers/workloads"),
+    refetchInterval: 10_000,
   });
   const assign = useMutation({
     mutationFn: ({ parcelId, courierId }: { parcelId: string; courierId: string }) =>
@@ -66,7 +71,10 @@ export default function DispatcherDashboard() {
           <CardHeader>
             <CardTitle>{status ? "All parcels" : "Unassigned queue"}</CardTitle>
             <CardDescription>Filter the local dispatch queue without calling parcel-service.</CardDescription>
-            <select aria-label="Filter parcels by status" value={status} onChange={(event) => setStatus(event.target.value)}
+            <select aria-label="Filter parcels by status" value={status} onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(0);
+            }}
               className="mt-3 h-9 w-48 rounded-lg border bg-background px-3 text-sm">
               <option value="">Unassigned queue</option>
               <option value="ALL">All statuses</option>
@@ -76,6 +84,13 @@ export default function DispatcherDashboard() {
               <option value="OUT_FOR_DELIVERY">Out for delivery</option>
               <option value="DELIVERED">Delivered</option>
               <option value="FAILED">Failed</option>
+            </select>
+            <select aria-label="Filter parcels by courier" value={courierId} onChange={(event) => {
+              setCourierId(event.target.value);
+              setPage(0);
+            }} className="ml-2 mt-3 h-9 w-48 rounded-lg border bg-background px-3 text-sm">
+              <option value="">All couriers</option>
+              {couriers.data?.map((courier) => <option key={courier.userId} value={courier.userId}>{courier.fullName}</option>)}
             </select>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -91,14 +106,26 @@ export default function DispatcherDashboard() {
           <CardHeader><CardTitle>Courier workloads</CardTitle><CardDescription>Active assigned parcels per courier.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
             {couriers.data?.map((courier) => (
-              <div key={courier.userId} className="flex items-center justify-between border-b pb-3 last:border-0">
+              <button type="button" key={courier.userId} onClick={() => {
+                setCourierId(courier.userId);
+                setStatus("ALL");
+                setPage(0);
+              }} className="flex w-full items-center justify-between border-b pb-3 text-left last:border-0">
                 <div><p className="font-medium">{courier.fullName}</p><p className="text-sm text-muted-foreground">{courier.vehicleType}</p></div>
                 <span className="rounded-full bg-muted px-3 py-1 text-sm">{courier.activeParcelCount} active</span>
-              </div>
+              </button>
             ))}
           </CardContent>
         </Card>
       </div>
+      {parcels.data && parcels.data.totalPages > 1 ? (
+        <div className="mt-4 flex items-center justify-end gap-3 text-sm">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((current) => current - 1)}>Previous</Button>
+          <span>Page {page + 1} of {parcels.data.totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page + 1 >= parcels.data.totalPages}
+            onClick={() => setPage((current) => current + 1)}>Next</Button>
+        </div>
+      ) : null}
     </>
   );
 }
