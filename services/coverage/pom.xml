@@ -24,6 +24,9 @@
         <dependency><groupId>com.swiftdrop</groupId><artifactId>dispatch-service</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.swiftdrop</groupId><artifactId>merchant-service</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>com.swiftdrop</groupId><artifactId>notification-service</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.swiftdrop</groupId><artifactId>realtime-service</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.swiftdrop</groupId><artifactId>reporting-service</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>com.swiftdrop</groupId><artifactId>ai-assistant-service</artifactId><version>${project.version}</version></dependency>
     </dependencies>
 
     <build>

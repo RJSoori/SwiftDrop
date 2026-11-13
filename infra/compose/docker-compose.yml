@@ -3,8 +3,10 @@
 name: swiftdrop
 
 # Shared by the Spring services. Each one sets SERVER_PORT, which the health check uses.
+# 512 MB per container: the Dockerfile's MaxRAMPercentage=75 turns that into a ~384 MB heap.
 x-spring-service: &spring-service
   restart: unless-stopped
+  mem_limit: 512m
   healthcheck:
     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${SERVER_PORT}/actuator/health || exit 1"]
     interval: 10s
@@ -12,12 +14,19 @@ x-spring-service: &spring-service
     retries: 30
     start_period: 60s
 
+# Spring's relaxed binding maps SPRING_RABBITMQ_* onto spring.rabbitmq.*, so every service that pulls in AMQP
+# (directly or through the common-lib outbox) finds the broker without its own application.yml lines.
 x-spring-env: &spring-env
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
   JWKS_URI: http://auth-service:8081/.well-known/jwks.json
   JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8081}
+  INTERNAL_TOKEN: ${INTERNAL_TOKEN:?run scripts/dev-keys.sh}
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+  SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?run scripts/dev-keys.sh}
 
 services:
+  # ---------- Infrastructure ----------
   postgres:
     image: postgis/postgis:16-3.5
     environment:
@@ -29,6 +38,9 @@ services:
       DISPATCH_DB_PASSWORD: ${DISPATCH_DB_PASSWORD:?}
       MERCHANT_DB_PASSWORD: ${MERCHANT_DB_PASSWORD:?}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?}
+      REALTIME_DB_PASSWORD: ${REALTIME_DB_PASSWORD:?run scripts/dev-keys.sh}
+      REPORTING_DB_PASSWORD: ${REPORTING_DB_PASSWORD:?run scripts/dev-keys.sh}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?run scripts/dev-keys.sh}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/20-swiftdrop-schemas.sh:/docker-entrypoint-initdb.d/20-swiftdrop-schemas.sh:ro
@@ -59,6 +71,35 @@ services:
       timeout: 3s
       retries: 20
 
+  # Object storage for courier proof photos. MinIO no longer publishes community images, so this is the
+  # last Bitnami build (frozen, pinned). MINIO_DEFAULT_BUCKETS creates the bucket on first start.
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-swiftdrop}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?run scripts/dev-keys.sh}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_BUCKET_PROOFS:-proofs}
+    volumes:
+      - miniodata:/bitnami/minio/data
+    # S3 API only: MinIO dropped its web console from the server in 2025. Browse with any S3 client.
+    ports: ["9000:9000"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Catches every email notification-service sends. Inbox at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27.0
+    ports: ["8025:8025"] # SMTP stays inside the compose network on 1025
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # ---------- Spring services ----------
   auth-service:
     <<: *spring-service
     build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: auth-service } }
@@ -89,8 +130,11 @@ services:
       SERVER_PORT: "8082"
       DB_USERNAME: parcel_svc
       DB_PASSWORD: ${PARCEL_DB_PASSWORD}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?run scripts/dev-keys.sh} # recipient phone encryption (M3)
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000} # tracking link in label QR codes (M7)
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
 
   dispatch-service:
     <<: *spring-service
@@ -100,8 +144,17 @@ services:
       SERVER_PORT: "8083"
       DB_USERNAME: dispatch_svc
       DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
+      PARCEL_SERVICE_URL: http://parcel-service:8082
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+      # Proof photos (M9). Local dev uses the MinIO root login; production would use a scoped key.
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-swiftdrop}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_PROOFS: ${MINIO_BUCKET_PROOFS:-proofs}
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio: { condition: service_healthy }
 
   merchant-service:
     <<: *spring-service
@@ -111,8 +164,14 @@ services:
       SERVER_PORT: "8084"
       DB_USERNAME: merchant_svc
       DB_PASSWORD: ${MERCHANT_DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis # idempotency keys (M6)
+      PARCEL_SERVICE_URL: http://parcel-service:8082
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?run scripts/dev-keys.sh} # webhook secrets at rest
+      WEBHOOK_RETRY_DELAYS: ${WEBHOOK_RETRY_DELAYS:-PT5S,PT10S,PT20S,PT40S}
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
 
   notification-service:
     <<: *spring-service
@@ -122,12 +181,54 @@ services:
       SERVER_PORT: "8085"
       DB_USERNAME: notification_svc
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PARCEL_SERVICE_URL: http://parcel-service:8082
+      SPRING_MAIL_HOST: ${MAIL_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@swiftdrop.test}
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
+      mailpit: { condition: service_healthy }
+
+  realtime-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: realtime-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8086"
+      DB_USERNAME: realtime_svc
+      DB_PASSWORD: ${REALTIME_DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis # pub/sub fan-out between replicas (M7)
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  reporting-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: reporting-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8087"
+      DB_USERNAME: reporting_svc
+      DB_PASSWORD: ${REPORTING_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  ai-assistant-service:
+    <<: *spring-service
+    build: { context: ../.., dockerfile: services/Dockerfile, args: { SERVICE: ai-assistant-service } }
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8088"
+      DB_USERNAME: ai_svc
+      DB_PASSWORD: ${AI_DB_PASSWORD}
+      GATEWAY_URL: http://gateway:8080 # tools call our API with the customer's own JWT (M1)
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    depends_on:
+      postgres: { condition: service_healthy }
 
   gateway:
     <<: *spring-service
@@ -141,6 +242,11 @@ services:
       PARCEL_SERVICE_URL: http://parcel-service:8082
       DISPATCH_SERVICE_URL: http://dispatch-service:8083
       MERCHANT_SERVICE_URL: http://merchant-service:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+      REALTIME_SERVICE_URL: http://realtime-service:8086
+      REPORTING_SERVICE_URL: http://reporting-service:8087
+      AI_ASSISTANT_SERVICE_URL: http://ai-assistant-service:8088
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?run scripts/dev-keys.sh}
       CORS_ALLOWED_ORIGINS: ${WEB_APP_URL:-http://localhost:3000}
     ports: ["8080:8080"]
     depends_on:
@@ -149,7 +255,12 @@ services:
       parcel-service: { condition: service_healthy }
       dispatch-service: { condition: service_healthy }
       merchant-service: { condition: service_healthy }
+      notification-service: { condition: service_healthy }
+      realtime-service: { condition: service_healthy }
+      reporting-service: { condition: service_healthy }
+      ai-assistant-service: { condition: service_healthy }
 
+  # ---------- Frontends ----------
   web:
     build:
       context: ../../apps/web
@@ -165,5 +276,23 @@ services:
     depends_on:
       gateway: { condition: service_healthy }
 
+  # Fake online shop (M6). Its own container so the demo can `docker compose stop demo-store` to show retries.
+  # Webhook URL to register for it: http://demo-store:4000/webhooks/swiftdrop
+  demo-store:
+    build: { context: ../../apps/demo-store }
+    restart: unless-stopped
+    environment:
+      PORT: "4000"
+      SWIFTDROP_API_URL: http://gateway:8080
+      DEMO_STORE_API_KEY: ${DEMO_STORE_API_KEY:-}
+      DEMO_STORE_WEBHOOK_SECRET: ${DEMO_STORE_WEBHOOK_SECRET:-}
+    ports: ["4000:4000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
 volumes:
   pgdata:
+  miniodata:

@@ -1,0 +1,1 @@
+-- Baseline for the "ai" schema (owned by ai-assistant-service). Phase 2 tables go in V2__*.sql and later.

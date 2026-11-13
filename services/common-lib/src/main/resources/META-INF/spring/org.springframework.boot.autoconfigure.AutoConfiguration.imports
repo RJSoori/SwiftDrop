@@ -1,2 +1,3 @@
 com.swiftdrop.common.web.CommonWebAutoConfiguration
 com.swiftdrop.common.security.CommonSecurityAutoConfiguration
+com.swiftdrop.common.outbox.OutboxAutoConfiguration

@@ -6,5 +6,6 @@ package com.swiftdrop.parcel.domain;
 public enum PricingStrategyType {
     FLAT_RATE,
     WEIGHT_TIERED,
-    DISTANCE_BASED
+    DISTANCE_BASED,
+    EXPRESS
 }

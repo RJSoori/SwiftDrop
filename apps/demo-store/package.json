@@ -1,0 +1,9 @@
+{
+  "name": "swiftdrop-demo-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fake online shop that calls the SwiftDrop merchant API and receives its webhooks",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

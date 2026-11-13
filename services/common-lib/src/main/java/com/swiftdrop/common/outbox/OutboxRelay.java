@@ -1,13 +1,11 @@
-package com.swiftdrop.parcel.service;
+package com.swiftdrop.common.outbox;
 
-import com.swiftdrop.parcel.domain.OutboxEvent;
-import com.swiftdrop.parcel.repository.OutboxEventRepository;
+import com.swiftdrop.common.events.EventTopology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -17,12 +15,15 @@ import java.util.List;
  * Outbox Relay background worker responsible for polling unpublished database rows
  * and publishing them to the RabbitMQ topic exchange.
  * Implements the Transactional Outbox pattern as documented in Section 7.1.
+ * Created by {@link OutboxAutoConfiguration}; declare your own {@code OutboxRelay} bean (e.g. a subclass) to replace it.
  */
-@Component
+// TODO(M5): harden delivery - publisher confirms (only mark published after the broker acks),
+//  full EventEnvelope payloads with messageId/correlationId headers, and retry/backoff. Override publish() to do so.
+//  Delivery is at-least-once: two relays running at once (e.g. two replicas) can send the same row twice, so
+//  consumers must de-duplicate on eventId; add SELECT ... FOR UPDATE SKIP LOCKED before scaling past one replica.
 public class OutboxRelay {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxRelay.class);
-    private static final String PARCEL_EVENTS_EXCHANGE = "parcel.events";
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectProvider<RabbitTemplate> rabbitTemplateProvider;
@@ -49,7 +50,7 @@ public class OutboxRelay {
         for (OutboxEvent event : pendingEvents) {
             try {
                 if (rabbitTemplate != null) {
-                    rabbitTemplate.convertAndSend(PARCEL_EVENTS_EXCHANGE, event.getEventType(), event.getPayload());
+                    publish(rabbitTemplate, event);
                 } else {
                     log.debug("RabbitTemplate unavailable; simulated dispatch for event: {}", event.getEventType());
                 }
@@ -64,9 +65,14 @@ public class OutboxRelay {
         }
 
         if (publishedCount > 0) {
-            log.info("OutboxRelay successfully published {} event(s) to exchange '{}'", publishedCount, PARCEL_EVENTS_EXCHANGE);
+            log.info("OutboxRelay successfully published {} event(s) to exchange '{}'", publishedCount, EventTopology.EXCHANGE);
         }
 
         return publishedCount;
+    }
+
+    /** Sends one row. Extension point for M5; throw to stop the batch and leave the row unpublished. */
+    protected void publish(RabbitTemplate rabbitTemplate, OutboxEvent event) {
+        rabbitTemplate.convertAndSend(EventTopology.EXCHANGE, event.getEventType(), event.getPayload());
     }
 }
