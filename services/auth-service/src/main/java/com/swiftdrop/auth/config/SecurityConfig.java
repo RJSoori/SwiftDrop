@@ -3,6 +3,7 @@ package com.swiftdrop.auth.config;
 import com.swiftdrop.auth.oauth.EncryptedCookieAuthorizationRequestRepository;
 import com.swiftdrop.auth.oauth.GoogleLoginHandlers;
 import com.swiftdrop.common.security.HeaderOrCookieBearerTokenResolver;
+import com.swiftdrop.common.security.InternalTokenAuthorizationManager;
 import com.swiftdrop.common.security.ProblemDetailAuthHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -86,6 +87,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
                                                    ProblemDetailAuthHandler authHandler,
+                                                   InternalTokenAuthorizationManager internalToken,
                                                    OAuth2AuthorizationRequestResolver pkceResolver,
                                                    EncryptedCookieAuthorizationRequestRepository authRequestCookie,
                                                    GoogleLoginHandlers googleLogin) throws Exception {
@@ -94,6 +96,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(InternalTokenAuthorizationManager.PATH_PATTERN).access(internalToken)
                         .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o
