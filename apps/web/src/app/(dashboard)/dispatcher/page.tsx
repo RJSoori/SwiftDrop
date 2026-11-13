@@ -71,27 +71,29 @@ export default function DispatcherDashboard() {
           <CardHeader>
             <CardTitle>{status ? "All parcels" : "Unassigned queue"}</CardTitle>
             <CardDescription>Filter the local dispatch queue without calling parcel-service.</CardDescription>
-            <select aria-label="Filter parcels by status" value={status} onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(0);
-            }}
-              className="mt-3 h-9 w-48 rounded-lg border bg-background px-3 text-sm">
-              <option value="">Unassigned queue</option>
-              <option value="ALL">All statuses</option>
-              <option value="CREATED">Unassigned / created</option>
-              <option value="PICKED_UP">Picked up</option>
-              <option value="IN_TRANSIT">In transit</option>
-              <option value="OUT_FOR_DELIVERY">Out for delivery</option>
-              <option value="DELIVERED">Delivered</option>
-              <option value="FAILED">Failed</option>
-            </select>
-            <select aria-label="Filter parcels by courier" value={courierId} onChange={(event) => {
-              setCourierId(event.target.value);
-              setPage(0);
-            }} className="ml-2 mt-3 h-9 w-48 rounded-lg border bg-background px-3 text-sm">
-              <option value="">All couriers</option>
-              {couriers.data?.map((courier) => <option key={courier.userId} value={courier.userId}>{courier.fullName}</option>)}
-            </select>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <select aria-label="Filter parcels by status" value={status} onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(0);
+              }}
+                className="h-9 w-full max-w-48 rounded-lg border bg-background px-3 text-sm">
+                <option value="">Unassigned queue</option>
+                <option value="ALL">All statuses</option>
+                <option value="CREATED">Unassigned / created</option>
+                <option value="PICKED_UP">Picked up</option>
+                <option value="IN_TRANSIT">In transit</option>
+                <option value="OUT_FOR_DELIVERY">Out for delivery</option>
+                <option value="DELIVERED">Delivered</option>
+                <option value="FAILED">Failed</option>
+              </select>
+              <select aria-label="Filter parcels by courier" value={courierId} onChange={(event) => {
+                setCourierId(event.target.value);
+                setPage(0);
+              }} className="h-9 w-full max-w-48 rounded-lg border bg-background px-3 text-sm">
+                <option value="">All couriers</option>
+                {couriers.data?.map((courier) => <option key={courier.userId} value={courier.userId}>{courier.fullName}</option>)}
+              </select>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {parcels.isPending ? <p className="text-muted-foreground">Loading queue…</p> : null}
