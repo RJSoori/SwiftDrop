@@ -31,6 +31,7 @@ import {
   RefreshCw,
   ExternalLink,
   X,
+  Loader2,
 } from "lucide-react";
 
 const dateFormat = new Intl.DateTimeFormat("en-LK", { dateStyle: "medium", timeStyle: "short" });
@@ -186,7 +187,7 @@ export default function MerchantDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeading
-          title="Merchant Orders"
+          title={`Hello, ${me.data?.name.split(" ")[0] ?? "Merchant"}`}
           intro="Track and dispatch outgoing deliveries for your e-commerce shop."
         />
         <div className="flex gap-2">
@@ -207,60 +208,60 @@ export default function MerchantDashboard() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
+        <Card className="border-2 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold tabular font-mono mt-1">{counts.total}</p>
+                <p className="text-2xl font-bold tabular-nums font-mono mt-1">{counts.total}</p>
               </div>
               <Package className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Awaiting Pickup</p>
-                <p className="text-2xl font-bold tabular font-mono mt-1 text-muted-foreground">{counts.created}</p>
+                <p className="text-2xl font-bold tabular-nums font-mono mt-1 text-muted-foreground">{counts.created}</p>
               </div>
               <Clock className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">In Transit</p>
-                <p className="text-2xl font-bold tabular font-mono mt-1 text-primary">{counts.inTransit}</p>
+                <p className="text-2xl font-bold tabular-nums font-mono mt-1 text-primary">{counts.inTransit}</p>
               </div>
               <Truck className="h-5 w-5 text-primary" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Delivered</p>
-                <p className="text-2xl font-bold tabular font-mono mt-1 text-emerald-600 dark:text-emerald-400">{counts.delivered}</p>
+                <p className="text-2xl font-bold tabular-nums font-mono mt-1 text-emerald-600 dark:text-emerald-400">{counts.delivered}</p>
               </div>
               <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Failed / Returned</p>
-                <p className="text-2xl font-bold tabular font-mono mt-1 text-destructive">{counts.failed}</p>
+                <p className="text-2xl font-bold tabular-nums font-mono mt-1 text-destructive">{counts.failed}</p>
               </div>
               <AlertCircle className="h-5 w-5 text-destructive" />
             </div>
@@ -269,7 +270,7 @@ export default function MerchantDashboard() {
       </div>
 
       {/* Filter and Search Bar */}
-      <Card>
+      <Card className="border-2 shadow-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-80">
@@ -305,16 +306,26 @@ export default function MerchantDashboard() {
       </Card>
 
       {/* Orders Table */}
-      <Card>
+      <Card className="border-2 shadow-sm">
         <CardHeader>
-          <CardTitle>Orders & Shipments</CardTitle>
-          <CardDescription>
-            {filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"} found
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Orders &amp; Shipments</CardTitle>
+              <CardDescription>
+                {filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"} found
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="font-mono text-xs">
+              {ordersQuery.data ? `${rawOrders.length} total` : "Loading…"}
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           {ordersQuery.isPending ? (
-            <p className="py-8 text-center text-muted-foreground">Loading merchant orders…</p>
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin text-muted-foreground/60" />
+              Loading merchant orders…
+            </div>
           ) : filteredOrders.length === 0 ? (
             <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">
               <Package className="mx-auto h-8 w-8 opacity-40 mb-3" />
@@ -329,32 +340,32 @@ export default function MerchantDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tracking #</TableHead>
-                    <TableHead>Order Ref</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Fee</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead className="text-xs">Tracking #</TableHead>
+                    <TableHead className="text-xs">Order Ref</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Fee</TableHead>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="tabular font-mono font-medium">
+                      <TableCell className="font-mono text-xs font-semibold text-foreground">
                         {order.trackingNo}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground">
                         {order.orderRef || "—"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(order.status)}>
+                        <Badge variant={getStatusBadgeVariant(order.status)} className="text-[10px] uppercase font-semibold">
                           {formatStatus(order.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="tabular font-mono text-xs">
+                      <TableCell className="tabular-nums font-mono text-xs">
                         {order.feeLkr ? currencyFormat.format(order.feeLkr) : "—"}
                       </TableCell>
-                      <TableCell className="tabular font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      <TableCell className="tabular-nums font-mono text-xs text-muted-foreground whitespace-nowrap">
                         {order.createdAt ? dateFormat.format(new Date(order.createdAt)) : "—"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -378,7 +389,7 @@ export default function MerchantDashboard() {
       {/* Book New Delivery Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+          <Card className="w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border-2">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
               <div>
                 <CardTitle>Book Outgoing Delivery</CardTitle>
@@ -396,14 +407,15 @@ export default function MerchantDashboard() {
               className="p-6 space-y-4"
             >
               {formError && (
-                <div className="p-3 text-sm rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
-                  {formError}
+                <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{formError}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="orderRef">Store Order Reference</Label>
+                  <Label htmlFor="orderRef" className="text-xs">Store Order Reference</Label>
                   <Input
                     id="orderRef"
                     placeholder="e.g. SHOP-88219"
@@ -412,7 +424,7 @@ export default function MerchantDashboard() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="weightKg">Parcel Weight (kg)</Label>
+                  <Label htmlFor="weightKg" className="text-xs">Parcel Weight (kg)</Label>
                   <Input
                     id="weightKg"
                     type="number"
@@ -428,7 +440,7 @@ export default function MerchantDashboard() {
               {/* Pickup Address */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 space-y-1.5">
-                  <Label htmlFor="pickupAddress">Pickup Address</Label>
+                  <Label htmlFor="pickupAddress" className="text-xs">Pickup Address</Label>
                   <Input
                     id="pickupAddress"
                     placeholder="Merchant Warehouse Address"
@@ -438,15 +450,17 @@ export default function MerchantDashboard() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="pickupCity">Pickup City</Label>
+                  <Label htmlFor="pickupCity" className="text-xs">Pickup City</Label>
                   <select
                     id="pickupCity"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={formData.pickupCity}
                     onChange={(e) => setFormData({ ...formData, pickupCity: e.target.value })}
+                    className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                   >
                     {SRI_LANKA_CITIES.map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
+                      <option key={`pickup-${c.name}`} value={c.name} className="bg-card text-foreground">
+                        {c.name} ({c.province})
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -455,7 +469,7 @@ export default function MerchantDashboard() {
               {/* Dropoff Address */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 space-y-1.5">
-                  <Label htmlFor="dropoffAddress">Destination Address</Label>
+                  <Label htmlFor="dropoffAddress" className="text-xs">Destination Address</Label>
                   <Input
                     id="dropoffAddress"
                     placeholder="Customer destination address"
@@ -465,15 +479,17 @@ export default function MerchantDashboard() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="dropoffCity">Destination City</Label>
+                  <Label htmlFor="dropoffCity" className="text-xs">Destination City</Label>
                   <select
                     id="dropoffCity"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={formData.dropoffCity}
                     onChange={(e) => setFormData({ ...formData, dropoffCity: e.target.value })}
+                    className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
                   >
                     {SRI_LANKA_CITIES.map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
+                      <option key={`dropoff-${c.name}`} value={c.name} className="bg-card text-foreground">
+                        {c.name} ({c.province})
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -482,7 +498,7 @@ export default function MerchantDashboard() {
               {/* Customer Contact */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="recipientName">Recipient Name</Label>
+                  <Label htmlFor="recipientName" className="text-xs">Recipient Name</Label>
                   <Input
                     id="recipientName"
                     placeholder="Full Customer Name"
@@ -492,7 +508,7 @@ export default function MerchantDashboard() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="recipientPhone">Recipient Phone</Label>
+                  <Label htmlFor="recipientPhone" className="text-xs">Recipient Phone</Label>
                   <Input
                     id="recipientPhone"
                     placeholder="07XXXXXXXX"
@@ -503,12 +519,33 @@ export default function MerchantDashboard() {
                 </div>
               </div>
 
+              {/* Service Type */}
+              <div className="space-y-1.5">
+                <Label htmlFor="serviceType" className="text-xs">Service Type</Label>
+                <select
+                  id="serviceType"
+                  value={formData.serviceType}
+                  onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+                  className="mt-1 flex h-8 w-full rounded-lg border border-input bg-card text-foreground px-2 text-xs outline-none focus-visible:border-ring [&>option]:bg-card [&>option]:text-foreground"
+                >
+                  <option value="STANDARD" className="bg-card text-foreground">Standard</option>
+                  <option value="EXPRESS" className="bg-card text-foreground">Express (Priority)</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createOrderMutation.isPending}>
-                  {createOrderMutation.isPending ? "Booking..." : "Confirm & Dispatch"}
+                  {createOrderMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Booking...
+                    </>
+                  ) : (
+                    "Confirm & Dispatch"
+                  )}
                 </Button>
               </div>
             </form>
@@ -519,11 +556,11 @@ export default function MerchantDashboard() {
       {/* View Order Detail Modal */}
       {selectedTrackingNo && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg shadow-2xl">
+          <Card className="w-full max-w-lg shadow-2xl border-2">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
               <div>
                 <CardTitle>Shipment Details</CardTitle>
-                <CardDescription className="tabular font-mono">{selectedTrackingNo}</CardDescription>
+                <CardDescription className="tabular-nums font-mono">{selectedTrackingNo}</CardDescription>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setSelectedTrackingNo(null)}>
                 <X className="h-4 w-4" />
@@ -531,14 +568,17 @@ export default function MerchantDashboard() {
             </CardHeader>
             <CardContent className="p-6">
               {orderDetailQuery.isPending ? (
-                <p className="py-6 text-center text-muted-foreground">Loading shipment details…</p>
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin text-muted-foreground/60" />
+                  Loading shipment details…
+                </div>
               ) : orderDetailQuery.data ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b">
                     <div>
                       <p className="text-sm text-muted-foreground">Order Status</p>
                       <div className="mt-1">
-                        <Badge variant={getStatusBadgeVariant(orderDetailQuery.data.status)}>
+                        <Badge variant={getStatusBadgeVariant(orderDetailQuery.data.status)} className="text-[10px] uppercase font-semibold">
                           {formatStatus(orderDetailQuery.data.status)}
                         </Badge>
                       </div>
@@ -569,7 +609,7 @@ export default function MerchantDashboard() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Delivery Fee</p>
-                      <p className="font-medium mt-0.5 tabular font-mono">
+                      <p className="font-medium mt-0.5 tabular-nums font-mono">
                         {orderDetailQuery.data.feeLkr ? currencyFormat.format(orderDetailQuery.data.feeLkr) : "—"}
                       </p>
                     </div>
@@ -585,7 +625,7 @@ export default function MerchantDashboard() {
                               <span className="font-medium">{formatStatus(ev.toStatus)}</span>
                               {ev.note && <span className="text-muted-foreground ml-1.5">— {ev.note}</span>}
                             </div>
-                            <span className="text-muted-foreground tabular font-mono">{dateFormat.format(new Date(ev.occurredAt))}</span>
+                            <span className="text-muted-foreground tabular-nums font-mono">{dateFormat.format(new Date(ev.occurredAt))}</span>
                           </div>
                         ))}
                       </div>
