@@ -40,6 +40,14 @@ public class AuditLogEntry {
         this.target = target;
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public Instant getOccurredAt() {
+        return occurredAt;
+    }
+
     public UUID getActorId() {
         return actorId;
     }

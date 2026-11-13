@@ -45,6 +45,10 @@ public class SecurityConfig {
             PATHS.matcher("/.well-known/jwks.json"),
             PATHS.matcher("/actuator/health"),
             PATHS.matcher("/actuator/health/**"),
+            // springdoc: http://localhost:8081/swagger-ui.html (not routed by the gateway)
+            PATHS.matcher("/v3/api-docs/**"),
+            PATHS.matcher("/swagger-ui.html"),
+            PATHS.matcher("/swagger-ui/**"),
             PATHS.matcher("/error"));
 
     private static final OAuth2AuthorizedClientRepository DISCARD_AUTHORIZED_CLIENTS = new OAuth2AuthorizedClientRepository() {
