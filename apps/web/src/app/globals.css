@@ -51,6 +51,7 @@
 
 :root {
   color-scheme: light;
+  --font-sans: Arial, Helvetica, sans-serif;
   /* SwiftDrop palette: carbon-copy ink blue (brand), parcel-tape amber, cool paper and ink. */
   --brand: #2f3bd1;
   --tape: #f2b200;
