@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Brand } from "@/components/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { TrackForm } from "./track-form";
@@ -29,7 +30,9 @@ export default function Home() {
           </p>
         </div>
 
-        <TrackForm />
+        <Suspense fallback={<div className="h-48 rounded-xl border-2 border-foreground bg-card animate-pulse" />}>
+          <TrackForm />
+        </Suspense>
       </main>
 
       <footer className="border-t">

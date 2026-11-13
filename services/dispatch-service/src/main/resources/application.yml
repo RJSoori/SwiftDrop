@@ -10,6 +10,10 @@ spring:
     password: ${DB_PASSWORD:}
   flyway:
     schemas: dispatch
+  servlet:
+    multipart:
+      max-file-size: ${COURIER_PROOF_MAX_FILE_SIZE:5MB}
+      max-request-size: ${COURIER_PROOF_MAX_REQUEST_SIZE:6MB}
   jpa:
     open-in-view: false
     hibernate:
@@ -22,6 +26,13 @@ spring:
         jwt:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+
+swiftdrop:
+  courier:
+    otp-ttl: ${COURIER_OTP_TTL:PT24H}
+    otp-max-attempts: ${COURIER_OTP_MAX_ATTEMPTS:5}
+    proof-max-file-size: ${COURIER_PROOF_MAX_FILE_SIZE:5MB}
+    proof-bucket: ${COURIER_PROOF_BUCKET:proofs}
 
 management:
   endpoints:

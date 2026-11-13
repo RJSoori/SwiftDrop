@@ -19,6 +19,7 @@
 
     <modules>
         <module>services/common-lib</module>
+        <module>services/test-support</module>
         <module>services/gateway</module>
         <module>services/auth-service</module>
         <module>services/parcel-service</module>
@@ -50,6 +51,13 @@
                 <groupId>com.swiftdrop</groupId>
                 <artifactId>common-lib</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <!-- Shared Testcontainers base; add to a service with <scope>test</scope>. See docs/testing.md -->
+            <dependency>
+                <groupId>com.swiftdrop</groupId>
+                <artifactId>test-support</artifactId>
+                <version>${project.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
