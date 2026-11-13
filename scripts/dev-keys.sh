@@ -11,7 +11,11 @@ b64() { openssl base64 -A; }
 rand() { openssl rand -hex 16; }
 
 # set_if_empty KEY VALUE: writes KEY=VALUE only when the line is currently "KEY=".
+# A key missing from an older .env (added to .env.example later) is appended first, so re-running fills it too.
 set_if_empty() {
+  if ! grep -q "^$1=" "$ENV_FILE"; then
+    printf '\n%s=\n' "$1" >> "$ENV_FILE"
+  fi
   if grep -q "^$1=$" "$ENV_FILE"; then
     # '|' delimiter: base64 values contain '/' and '+', never '|'
     sed -i.bak "s|^$1=$|$1=$2|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
@@ -30,7 +34,8 @@ fi
 
 set_if_empty PII_ENCRYPTION_KEY "$(openssl rand 32 | b64)"
 for key in POSTGRES_PASSWORD AUTH_DB_PASSWORD PARCEL_DB_PASSWORD DISPATCH_DB_PASSWORD MERCHANT_DB_PASSWORD \
-           NOTIFICATION_DB_PASSWORD RABBITMQ_PASSWORD SEED_PASSWORD INTERNAL_TOKEN; do
+           NOTIFICATION_DB_PASSWORD REALTIME_DB_PASSWORD REPORTING_DB_PASSWORD AI_DB_PASSWORD \
+           RABBITMQ_PASSWORD SEED_PASSWORD INTERNAL_TOKEN MINIO_ROOT_PASSWORD; do
   set_if_empty "$key" "$(rand)"
 done
 

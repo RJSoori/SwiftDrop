@@ -1,0 +1,1 @@
+-- Baseline for the "reporting" schema (owned by reporting-service). Phase 2 tables go in V2__*.sql and later.
