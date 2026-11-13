@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   deliveryDetailsSchema,
   nextCourierStatuses,
+  proofImageSchema,
+  proofUploadResponseSchema,
   statusUpdateSchema,
   todaysDeliveriesSchema,
 } from "./courier-deliveries";
@@ -71,5 +73,30 @@ describe("courier status updates", () => {
     });
     expect(statusUpdateSchema.safeParse({ toStatus: "DELIVERED", note: "" }).success).toBe(false);
     expect(statusUpdateSchema.safeParse({ toStatus: "PICKED_UP", note: "x".repeat(501) }).success).toBe(false);
+  });
+});
+
+describe("courier photo proof validation", () => {
+  it("accepts JPEG and PNG files up to five megabytes", () => {
+    const jpeg = new File(["photo"], "proof.jpg", { type: "image/jpeg" });
+    const png = new File(["photo"], "proof.png", { type: "image/png" });
+
+    expect(proofImageSchema.safeParse(jpeg).success).toBe(true);
+    expect(proofImageSchema.safeParse(png).success).toBe(true);
+    expect(proofImageSchema.safeParse(new File(["x".repeat(5 * 1024 * 1024)], "large.png", { type: "image/png" })).success)
+      .toBe(true);
+  });
+
+  it("rejects unsupported types and files larger than five megabytes", () => {
+    const unsupported = new File(["photo"], "proof.gif", { type: "image/gif" });
+    const oversized = new File(["x".repeat(5 * 1024 * 1024 + 1)], "large.jpg", { type: "image/jpeg" });
+
+    expect(proofImageSchema.safeParse(unsupported).success).toBe(false);
+    expect(proofImageSchema.safeParse(oversized).success).toBe(false);
+  });
+
+  it("validates the proof identifier returned by the upload endpoint", () => {
+    expect(proofUploadResponseSchema.safeParse({ proofId: "7b2f410c-68e9-4c65-99ba-08a60b7678f7" }).success).toBe(true);
+    expect(proofUploadResponseSchema.safeParse({ proofId: "invalid" }).success).toBe(false);
   });
 });

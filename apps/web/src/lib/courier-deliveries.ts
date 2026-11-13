@@ -33,6 +33,15 @@ export const statusUpdateSchema = z.object({
   note: z.string().trim().max(500, "Keep the note under 500 characters"),
 });
 
+export const proofImageSchema = z
+  .file()
+  .max(5 * 1024 * 1024, "Photo must be 5 MB or smaller")
+  .refine((file) => file.type === "image/jpeg" || file.type === "image/png", "Choose a JPEG or PNG photo");
+
+export const proofUploadResponseSchema = z.object({
+  proofId: z.uuid(),
+});
+
 export type DeliverySummary = z.infer<typeof deliverySummarySchema>;
 export type DeliveryStatus = DeliverySummary["status"];
 export type DeliveryDetails = z.infer<typeof deliveryDetailsSchema>;
