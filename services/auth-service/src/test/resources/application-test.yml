@@ -9,3 +9,6 @@ swiftdrop:
   seed:
     enabled: true
     password: Seed-pass-123
+  # No broker in these tests: the relay runs once at startup, then rows stay unpublished so tests can read them.
+  outbox:
+    poll-interval-ms: 3600000
