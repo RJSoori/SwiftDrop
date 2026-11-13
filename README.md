@@ -111,3 +111,5 @@ infra/compose/   docker-compose.yml and .env.example
 scripts/         dev-keys.sh
 docs/            diagrams
 ```
+
+Member 5 merchant integration setup, API contract and demo: [docs/member-5-merchant-integration.md](docs/member-5-merchant-integration.md).

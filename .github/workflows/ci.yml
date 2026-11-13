@@ -43,6 +43,17 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  demo-store:
+    name: Demo Store tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node --test
+        working-directory: apps/demo-store
+
   docker:
     name: Build Docker images
     runs-on: ubuntu-latest

@@ -1,7 +1,8 @@
 "use client";
 
-import { PageHeading, ServiceAccess } from "@/components/dashboard";
+import { PageHeading } from "@/components/dashboard";
 import { useLogout, useMe } from "@/lib/session";
+import { MerchantOrders } from "@/components/merchant-orders";
 import { Button } from "@/components/ui/button";
 
 export default function MerchantDashboard() {
@@ -40,7 +41,7 @@ export default function MerchantDashboard() {
         title={`Hello, ${me.data?.name.split(" ")[0] ?? ""}`}
         intro="Book pickups for your orders and follow every delivery from here."
       />
-      <ServiceAccess />
+      <MerchantOrders />
     </>
   );
 }
