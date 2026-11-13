@@ -86,6 +86,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
                                                    ProblemDetailAuthHandler authHandler,
+                                                   com.swiftdrop.common.security.InternalTokenAuthorizationManager internalToken,
                                                    OAuth2AuthorizationRequestResolver pkceResolver,
                                                    EncryptedCookieAuthorizationRequestRepository authRequestCookie,
                                                    GoogleLoginHandlers googleLogin) throws Exception {
@@ -94,6 +95,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers("/internal/**").access(internalToken)
                         .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o

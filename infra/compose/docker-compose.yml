@@ -167,6 +167,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis # idempotency keys (M6)
       PARCEL_SERVICE_URL: http://parcel-service:8082
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?run scripts/dev-keys.sh} # webhook secrets at rest
+      WEBHOOK_ALLOWED_LOCAL_HOSTS: ${WEBHOOK_ALLOWED_LOCAL_HOSTS:-demo-store}
       WEBHOOK_RETRY_DELAYS: ${WEBHOOK_RETRY_DELAYS:-PT5S,PT10S,PT20S,PT40S}
     depends_on:
       postgres: { condition: service_healthy }
