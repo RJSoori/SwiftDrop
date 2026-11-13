@@ -246,7 +246,7 @@ export default function MerchantWebhooksPage() {
               </code>
             </div>
             <p>
-              Verify signature by computing HMAC-SHA256 of <code className="font-mono text-foreground">t + "." + payload</code> and comparing against <code className="font-mono text-foreground">v1</code>.
+              Verify signature by computing HMAC-SHA256 of <code className="font-mono text-foreground">{'t + "." + payload'}</code> and comparing against <code className="font-mono text-foreground">v1</code>.
             </p>
           </CardContent>
         </Card>
