@@ -44,7 +44,8 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
   DISPATCHER: [{ href: "/dispatcher", label: "Overview" }],
   ADMIN: [
     { href: "/admin", label: "Overview" },
-    { href: "/admin/merchants", label: "Merchant applications" },
-    { href: "/admin/users", label: "Staff accounts" },
+    { href: "/admin/merchants", label: "Merchants" },
+    { href: "/admin/users", label: "Users" },
+    { href: "/admin/audit-log", label: "Audit log" },
   ],
 };

@@ -83,6 +83,32 @@ export type User = {
   merchantStatus?: MerchantStatus;
 };
 
+/** Stable page shape from auth-service admin endpoints. `page` is zero-based. */
+export type Page<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number };
+
+export type UserStatus = "ACTIVE" | "DISABLED";
+
+/** GET /auth/admin/users row. The phone is always masked by the server, e.g. +9477*****67. */
+export type AdminUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  roles: Role[];
+  status: UserStatus;
+  merchantStatus?: MerchantStatus;
+  createdAt: string;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  actorId?: string;
+  actorEmail?: string;
+  action: string;
+  target: string;
+  occurredAt: string;
+};
+
 /** auth-service credentials package (M2). API_KEY: sent as X-API-Key. CLIENT: OAuth 2.0 client-credentials pair. */
 export type ApiCredentialType = "API_KEY" | "CLIENT";
 
@@ -110,6 +136,7 @@ export type MerchantApplication = {
   registrationNo: string;
   status: MerchantStatus;
   createdAt: string;
+  reviewedAt?: string;
 };
 
 export type ParcelStatus =
