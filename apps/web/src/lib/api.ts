@@ -83,6 +83,25 @@ export type User = {
   merchantStatus?: MerchantStatus;
 };
 
+/** auth-service credentials package (M2). API_KEY: sent as X-API-Key. CLIENT: OAuth 2.0 client-credentials pair. */
+export type ApiCredentialType = "API_KEY" | "CLIENT";
+
+export type ApiCredential = {
+  id: string;
+  type: ApiCredentialType;
+  name: string;
+  /** Visible start of an API key; for a CLIENT the full client_id. */
+  prefix: string;
+  clientId?: string;
+  scopes: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+};
+
+/** POST response: the only time the secret is ever returned. */
+export type CreatedApiCredential = { credential: ApiCredential; secret: string };
+
 export type MerchantApplication = {
   id: string;
   email: string;
