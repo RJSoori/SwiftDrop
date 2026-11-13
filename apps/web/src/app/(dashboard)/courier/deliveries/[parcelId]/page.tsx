@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import { useDeliveryDetails, type DeliveryStatus } from "@/lib/courier-deliveries";
 
 const STATUS_LABELS: Record<DeliveryStatus, string> = {
+  CREATED: "Created",
   PICKED_UP: "Picked up",
   IN_TRANSIT: "In transit",
   OUT_FOR_DELIVERY: "Out for delivery",

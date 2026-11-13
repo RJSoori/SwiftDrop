@@ -12,6 +12,7 @@ import { useTodaysDeliveries, type DeliverySummary, type DeliveryStatus } from "
 type DeliveryTab = "active" | "completed";
 
 const STATUS_LABELS: Record<DeliveryStatus, string> = {
+  CREATED: "Created",
   PICKED_UP: "Picked up",
   IN_TRANSIT: "In transit",
   OUT_FOR_DELIVERY: "Out for delivery",
