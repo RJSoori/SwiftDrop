@@ -55,7 +55,8 @@ class ParcelToolsTest {
     void trackParcelForwardsTheJwtAndKeepsOnlySafeFields() throws Exception {
         gateway.stubFor(get("/api/v1/tracking/SD-1001").withHeader("Authorization", equalTo("Bearer customer-token"))
                 .willReturn(okJson("""
-                        {"trackingNo":"SD-1001","status":"OUT_FOR_DELIVERY","pickupCity":"Colombo","dropoffCity":"Kandy",
+                        {"trackingNo":"SD-1001","parcelId":"7b2f410c-68e9-4c65-99ba-08a60b7678f7","currentStatus":"OUT_FOR_DELIVERY",
+                         "pickupCity":"Colombo","dropoffCity":"Kandy","updatedAt":"2026-11-11T09:00:00Z",
                          "recipientName":"Nimal Perera","recipientPhone":"+94771234567","dropoffAddress":"12 Temple Rd",
                          "timeline":[{"status":"CREATED","occurredAt":"2026-11-10T08:00:00Z","note":"call 0771234567"},
                                      {"status":"OUT_FOR_DELIVERY","occurredAt":"2026-11-11T09:00:00Z"}]}""")));
