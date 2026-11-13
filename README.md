@@ -121,7 +121,7 @@ npm test
 
 `mvn verify` needs Docker running, because some tests start a real Postgres database in a container. The coverage report is saved to `services/coverage/target/site/jacoco-aggregate/index.html`.
 
-`mvn verify` also checks coverage: each module needs at least 70% line coverage, or the build fails. `*Application`, `*Config`, `*Configuration`, `Stub*` and `dto` classes don't count toward it. A service still in progress can set a lower temporary `coverage.minimum` in its own pom (parcel-service and realtime-service do this for now).
+`mvn verify` also checks coverage: each module needs at least 70% line coverage, or the build fails. `*Application`, `*Config`, `*Configuration`, `Stub*` and `dto` classes don't count toward it. A service still in progress can set a lower temporary `coverage.minimum` in its own pom (parcel, realtime, dispatch and merchant services do this for now).
 
 GitHub Actions runs on every PR into `dev` or `main`, and again after the merge. It runs the Maven build with the coverage gate, the web checks, and a Docker image build with a Trivy vulnerability scan. A fixable CRITICAL vulnerability in one of our images fails the run. Accepted exceptions go in `.trivyignore`, each with a reason and an expiry date. Coverage and Trivy reports are attached to each run as artifacts, and a summary table appears on the run page.
 
