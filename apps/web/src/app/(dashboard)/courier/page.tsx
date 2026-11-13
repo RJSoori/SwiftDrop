@@ -2,6 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import { FormField } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
@@ -166,15 +167,21 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
         : "bg-accent text-accent-foreground";
 
   return (
-    <article className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
-        <p className="mt-1 break-all font-semibold tabular">{delivery.parcelId}</p>
-      </div>
-      <span className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-medium ${statusColor}`}>
-        {STATUS_LABELS[delivery.status]}
-      </span>
-    </article>
+    <Link
+      href={`/courier/deliveries/${encodeURIComponent(delivery.parcelId)}`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      aria-label={`View parcel ${delivery.parcelId}, ${STATUS_LABELS[delivery.status]}`}
+    >
+      <article className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
+          <p className="mt-1 break-all font-semibold tabular">{delivery.parcelId}</p>
+        </div>
+        <span className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-medium ${statusColor}`}>
+          {STATUS_LABELS[delivery.status]}
+        </span>
+      </article>
+    </Link>
   );
 }
 
