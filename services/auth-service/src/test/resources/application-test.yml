@@ -9,6 +9,7 @@ swiftdrop:
   seed:
     enabled: true
     password: Seed-pass-123
+    demo-store-api-key: sd_live_test-demo-store-key-not-a-real-secret-0000
   # No broker in these tests: the relay runs once at startup, then rows stay unpublished so tests can read them.
   outbox:
     poll-interval-ms: 3600000
