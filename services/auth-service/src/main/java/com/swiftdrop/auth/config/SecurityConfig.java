@@ -39,6 +39,8 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/signup/merchant"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/login"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/refresh"),
+            // OAuth 2.0 client-credentials grant: the client authenticates with its id and secret, not a JWT
+            PATHS.matcher(HttpMethod.POST, "/api/v1/auth/oauth/token"),
             PATHS.matcher("/api/v1/auth/oauth2/**"),
             PATHS.matcher("/.well-known/jwks.json"),
             PATHS.matcher("/actuator/health"),
@@ -105,6 +107,7 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(INTERNAL_ENDPOINTS).access(internalToken)
                         .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/auth/merchant/**").hasRole("MERCHANT")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o
                         .jwt(j -> j.jwtAuthenticationConverter(jwtConverter))
