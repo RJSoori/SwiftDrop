@@ -3,9 +3,10 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
-import { FormField } from "@/components/form-field";
+import { FormError, FormField } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 import { useTodaysDeliveries, type DeliverySummary, type DeliveryStatus } from "@/lib/courier-deliveries";
 
@@ -33,7 +34,7 @@ export default function CourierDashboard() {
   const requestError = getRequestError(deliveries.error);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <PageHeading title="Today's deliveries" intro="Stay on top of every parcel on your route." />
         <Button
@@ -49,7 +50,7 @@ export default function CourierDashboard() {
         </Button>
       </div>
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <div className="mt-8 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <FormField
           id="delivery-search"
           label="Search by parcel ID"
@@ -75,28 +76,25 @@ export default function CourierDashboard() {
       </div>
 
       {deliveries.isPending ? (
-        <section aria-label="Loading deliveries" className="mt-6 grid gap-3">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="h-24 animate-pulse rounded-xl border bg-card" />
-          ))}
-        </section>
+        <p role="status" className="mt-8 text-muted-foreground">
+          Loading your deliveries…
+        </p>
       ) : deliveries.isError && !deliveries.data ? (
-        <div role="alert" className="mt-6 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-          <p className="font-medium text-destructive">Unable to load your deliveries.</p>
-          <p className="mt-1 text-sm text-muted-foreground">{requestError}</p>
-          <Button className="mt-4" onClick={() => void deliveries.refetch()} disabled={deliveries.isFetching}>
+        <div className="mt-8 grid justify-items-start gap-3">
+          <FormError message={`Could not load your deliveries. ${requestError}`} />
+          <Button onClick={() => void deliveries.refetch()} disabled={deliveries.isFetching}>
             Try again
           </Button>
         </div>
       ) : (
         <>
           {deliveries.isError && (
-            <p role="status" className="mt-5 rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            <p role="status" className="mt-8 text-sm text-muted-foreground">
               Could not refresh the list. Showing the last loaded deliveries.
             </p>
           )}
           {visible.length > 0 ? (
-            <ul className="mt-5 grid gap-3">
+            <ul className={`${deliveries.isError ? "mt-4" : "mt-8"} grid gap-3`}>
               {visible.map((delivery) => (
                 <li key={delivery.parcelId}>
                   <DeliveryCard delivery={delivery} />
@@ -104,8 +102,8 @@ export default function CourierDashboard() {
               ))}
             </ul>
           ) : (
-            <div className="mt-5 rounded-xl border border-dashed bg-card px-4 py-10 text-center">
-              <h2 className="font-semibold">
+            <div className={`${deliveries.isError ? "mt-4" : "mt-8"} rounded-xl border border-dashed p-8 text-center`}>
+              <h2 className="font-medium">
                 {search.trim()
                   ? "No matching deliveries"
                   : tab === "active"
@@ -173,7 +171,7 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       aria-label={`View parcel ${delivery.parcelId}, ${STATUS_LABELS[delivery.status]}`}
     >
-      <article className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="flex min-w-0 flex-col gap-3 border-2 p-4 shadow-sm transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
           <p className="mt-1 break-all font-semibold tabular">{delivery.parcelId}</p>
@@ -181,7 +179,7 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
         <span className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-medium ${statusColor}`}>
           {STATUS_LABELS[delivery.status]}
         </span>
-      </article>
+      </Card>
     </Link>
   );
 }
