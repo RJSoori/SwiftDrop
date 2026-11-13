@@ -119,6 +119,32 @@ public class CredentialService {
         return new Issued(saved, secret);
     }
 
+    /** A seeded key needs at least this many random characters after {@link #API_KEY_PREFIX}. */
+    static final int MIN_SEED_RANDOM_CHARS = 32;
+
+    /**
+     * Demo seed only: registers an API key whose raw value was generated outside SwiftDrop (DEMO_STORE_API_KEY in .env),
+     * so the Demo Store works on a fresh database. Stores only the hash, like any other key. Returns false (and stores
+     * nothing) if the key is already registered.
+     *
+     * @throws IllegalArgumentException if the key does not look like {@code sd_live_} plus 32 or more characters
+     */
+    @Transactional
+    public boolean registerSeedApiKey(MerchantAccount merchant, String name, String rawKey) {
+        if (rawKey == null || !rawKey.startsWith(API_KEY_PREFIX)
+                || rawKey.length() < API_KEY_PREFIX.length() + MIN_SEED_RANDOM_CHARS) {
+            throw new IllegalArgumentException("Seed API key must be " + API_KEY_PREFIX + " followed by at least "
+                    + MIN_SEED_RANDOM_CHARS + " characters");
+        }
+        String hash = SecretTokens.sha256(rawKey);
+        if (credentials.findBySecretHashAndType(hash, ApiCredentialType.API_KEY).isPresent()) {
+            return false;
+        }
+        credentials.save(new ApiCredential(merchant, ApiCredentialType.API_KEY, name,
+                rawKey.substring(0, API_KEY_PREFIX.length() + VISIBLE_CHARS), hash, ORDERS_WRITE));
+        return true;
+    }
+
     // ---------- gateway introspection ----------
 
     /**
