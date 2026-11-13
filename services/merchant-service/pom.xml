@@ -12,9 +12,12 @@
     </parent>
 
     <artifactId>merchant-service</artifactId>
-    <description>Merchant service (Phase 1 skeleton)</description>
+    <description>Merchant orders and signed webhook integrations</description>
 
     <dependencies>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-redis</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-amqp</artifactId></dependency>
+        <dependency><groupId>com.swiftdrop</groupId><artifactId>test-support</artifactId><scope>test</scope></dependency>
         <dependency>
             <groupId>com.swiftdrop</groupId>
             <artifactId>common-lib</artifactId>

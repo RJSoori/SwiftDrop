@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(InternalParcelController.class)
+@WebMvcTest(value = InternalParcelController.class, properties = "INTERNAL_TOKEN=test-internal-token")
 @ImportAutoConfiguration({CommonSecurityAutoConfiguration.class, CommonWebAutoConfiguration.class})
 @Import(SecurityConfig.class)
 class InternalParcelControllerTest {
@@ -44,6 +44,9 @@ class InternalParcelControllerTest {
 
     @MockBean
     private ParcelService parcelService;
+
+    @MockBean
+    private com.swiftdrop.parcel.service.MerchantParcelCreation merchantCreation;
 
     @Test
     @DisplayName("POST /internal/v1/parcels - allows merchant-service to create parcel via internal call")
@@ -67,15 +70,20 @@ class InternalParcelControllerTest {
         parcel.setMerchantOrderRef("ORDER-1001");
         parcel.setRecipientName("Saman Kumara");
 
-        when(parcelService.createMerchantParcel(any())).thenReturn(ParcelResponse.from(parcel));
+        when(merchantCreation.create(any(), org.mockito.ArgumentMatchers.isNull())).thenReturn(ParcelResponse.from(parcel));
 
-        mvc.perform(post("/internal/v1/parcels")
+        mvc.perform(post("/internal/v1/parcels").header("X-Internal-Token", "test-internal-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.trackingNo").value("SD-20261108-MCH001"))
                 .andExpect(jsonPath("$.origin").value("MERCHANT"))
                 .andExpect(jsonPath("$.merchantOrderRef").value("ORDER-1001"));
+    }
+
+    @Test
+    void merchantCreationRejectsCallsWithoutInternalToken() throws Exception {
+        mvc.perform(post("/internal/v1/parcels").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
     }
 
     @Test
