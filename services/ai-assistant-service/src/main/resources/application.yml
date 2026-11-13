@@ -1,0 +1,30 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: ai-assistant-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    username: ${DB_USERNAME:ai_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: ai
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: ai
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

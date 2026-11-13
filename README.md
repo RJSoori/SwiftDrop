@@ -30,9 +30,17 @@ This first version is the base of the system. Users can sign up and log in (with
 | dispatch-service | 8083 | Not built yet, only has a test endpoint |
 | merchant-service | 8084 | Not built yet, only has a test endpoint |
 | notification-service | 8085 | Not built yet, connects to RabbitMQ |
+| realtime-service | 8086 | Live tracking (SSE and WebSocket). Skeleton for now |
+| reporting-service | 8087 | Daily delivery counts for the reports page. Skeleton for now |
+| ai-assistant-service | 8088 | AI delivery assistant. Skeleton for now |
+| demo-store | 4000 | Fake online shop that uses the merchant API and receives webhooks. Placeholder for now |
 | postgres | 5432 | Database. Each service has its own schema |
-| rabbitmq | 5672 (web UI on 15672) | Message broker, will be used from phase 2 |
+| rabbitmq | 5672 (web UI on 15672) | Message broker for parcel events |
 | redis | - | Used by the gateway to limit login and signup attempts |
+| minio | 9000 | Stores courier proof photos in the `proofs` bucket (S3 API only, no web console) |
+| mailpit | 8025 | Catches every email the system sends. Open http://localhost:8025 to read them |
+
+The Spring services only listen inside the compose network; reach them through the gateway on 8080.
 
 The browser only talks to the web app on port 3000. The web app forwards everything under `/api` to the gateway.
 
@@ -44,7 +52,7 @@ Passwords are hashed with BCrypt and phone numbers are encrypted in the database
 
 ## Running the project
 
-You need Docker Desktop with about 6 GB of free RAM. On Windows, use Git Bash to run the script below.
+You need Docker Desktop with about 8 GB of RAM given to it (each Java service is capped at 512 MB). On Windows, use Git Bash to run the script below.
 
 ```bash
 cd infra/compose
@@ -57,6 +65,8 @@ docker compose up --build
 The first build takes a few minutes. Then open http://localhost:3000. You can run `docker compose ps` to check that all the containers are healthy.
 
 To stop everything, run `docker compose down`. Add `-v` if you also want to delete the database.
+
+When a new service or schema is added (for example after pulling `dev`), run `../../scripts/dev-keys.sh` again to fill the new secrets, then `docker compose down -v` once. The database init script only creates schemas on an empty volume.
 
 ## Test accounts
 
