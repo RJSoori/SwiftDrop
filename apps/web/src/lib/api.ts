@@ -146,6 +146,18 @@ export type ParcelDetailResponse = {
   history: ParcelStatusHistory[];
 };
 
+export type TrackingView = {
+  trackingNo: string;
+  currentStatus: ParcelStatus;
+  pickupCity: string | null;
+  dropoffCity: string | null;
+  timeline: {
+    status: ParcelStatus;
+    occurredAt: string;
+  }[];
+  updatedAt: string;
+};
+
 export type QuoteRequest = {
   weightKg?: number;
   lengthCm?: number;

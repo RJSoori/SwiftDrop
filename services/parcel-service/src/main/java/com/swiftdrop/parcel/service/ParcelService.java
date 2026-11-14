@@ -145,6 +145,7 @@ public class ParcelService {
                 "parcelId", parcel.getId().toString(),
                 "trackingNo", parcel.getTrackingNo(),
                 "origin", parcel.getOrigin(),
+                "occurredAt", parcel.getCreatedAt().toString(),
                 "merchantId", merchantId != null ? merchantId.toString() : "",
                 "pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : "",
                 "dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : "",
@@ -212,17 +213,18 @@ public class ParcelService {
         );
         historyRepository.save(initialHistory);
 
-        recordOutboxEvent(parcel.getId(), "parcel.created", Map.of(
-                "parcelId", parcel.getId().toString(),
-                "trackingNo", parcel.getTrackingNo(),
-                "origin", "MERCHANT",
-                "merchantId", request.merchantId() != null ? request.merchantId().toString() : "",
-                "merchantOrderRef", request.merchantOrderRef() != null ? request.merchantOrderRef() : "",
-                "pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : "",
-                "dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : "",
-                "pickupZoneId", parcel.getPickupZoneId() != null ? parcel.getPickupZoneId().toString() : "",
-                "weightKg", parcel.getWeightKg().toString(),
-                "feeLkr", parcel.getFeeLkr().toString()
+        recordOutboxEvent(parcel.getId(), "parcel.created", Map.ofEntries(
+                Map.entry("parcelId", parcel.getId().toString()),
+                Map.entry("trackingNo", parcel.getTrackingNo()),
+                Map.entry("origin", "MERCHANT"),
+                Map.entry("occurredAt", parcel.getCreatedAt().toString()),
+                Map.entry("merchantId", request.merchantId() != null ? request.merchantId().toString() : ""),
+                Map.entry("merchantOrderRef", request.merchantOrderRef() != null ? request.merchantOrderRef() : ""),
+                Map.entry("pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : ""),
+                Map.entry("dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : ""),
+                Map.entry("pickupZoneId", parcel.getPickupZoneId() != null ? parcel.getPickupZoneId().toString() : ""),
+                Map.entry("weightKg", parcel.getWeightKg().toString()),
+                Map.entry("feeLkr", parcel.getFeeLkr().toString())
         ));
 
         log.info("Created merchant parcel ID {} with tracking number {}", parcel.getId(), parcel.getTrackingNo());
@@ -272,6 +274,7 @@ public class ParcelService {
                 "parcelId", parcel.getId().toString(),
                 "trackingNo", parcel.getTrackingNo(),
                 "merchantId", parcel.getMerchantId() != null ? parcel.getMerchantId().toString() : "",
+                "courierId", parcel.getCourierId() != null ? parcel.getCourierId().toString() : "",
                 "fromStatus", current.name(),
                 "toStatus", target.name(),
                 "aggregateVersion", parcel.getVersion() != null ? parcel.getVersion().toString() : "0",
@@ -357,6 +360,7 @@ public class ParcelService {
                 "trackingNo", parcel.getTrackingNo(),
                 "fromStatus", current.name(),
                 "toStatus", target.name(),
+                "courierId", parcel.getCourierId() != null ? parcel.getCourierId().toString() : "",
                 "actorId", actorId != null ? actorId.toString() : ""
         ));
 
@@ -401,6 +405,20 @@ public class ParcelService {
         return parcelRepository.findById(id)
                 .map(ParcelResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean canAccessParcel(UUID parcelId, UUID userId, String role) {
+        Parcel parcel = parcelRepository.findById(parcelId).orElse(null);
+        if (parcel == null) {
+            return false;
+        }
+        return switch (role) {
+            case "CUSTOMER" -> userId.equals(parcel.getCustomerId());
+            case "MERCHANT" -> userId.equals(parcel.getMerchantId());
+            case "COURIER" -> userId.equals(parcel.getCourierId());
+            default -> false;
+        };
     }
 
     @Transactional(readOnly = true)
@@ -459,7 +477,9 @@ public class ParcelService {
 
     private void recordOutboxEvent(UUID aggregateId, String eventType, Object payloadObj) {
         try {
-            String payloadJson = objectMapper.writeValueAsString(payloadObj);
+            com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.valueToTree(payloadObj);
+            payload.put("eventId", UUID.randomUUID().toString());
+            String payloadJson = objectMapper.writeValueAsString(payload);
             OutboxEvent event = new OutboxEvent(aggregateId, eventType, payloadJson);
             outboxEventRepository.save(event);
         } catch (Exception e) {
