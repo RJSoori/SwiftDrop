@@ -1,5 +1,6 @@
 package com.swiftdrop.gateway.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
@@ -23,7 +24,9 @@ public class RouteConfig {
 
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder, KeyResolver clientIpKeyResolver,
-                               RedisRateLimiter authRateLimiter, RedisRateLimiter trackingRateLimiter,
+                               @Qualifier("authRateLimiter") RedisRateLimiter authRateLimiter,
+                               // Qualified: @Primary on authRateLimiter otherwise wins over the parameter name
+                               @Qualifier("trackingRateLimiter") RedisRateLimiter trackingRateLimiter,
                                @Value("${swiftdrop.routes.auth}") String auth,
                                @Value("${swiftdrop.routes.parcel}") String parcel,
                                @Value("${swiftdrop.routes.dispatch}") String dispatch,
