@@ -35,7 +35,9 @@ public class SecurityConfig {
 
     static final ServerWebExchangeMatcher PUBLIC_ENDPOINTS = new OrServerWebExchangeMatcher(
             ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST,
-                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh"),
+                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh",
+                    // OAuth 2.0 client credentials (M2): the shop's system authenticates with its client id and secret
+                    "/api/v1/auth/oauth/token"),
             ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, "/api/v1/auth/oauth2/**", "/api/v1/tracking/**"),
             // realtime-service checks the JWT itself when the WebSocket connects
             ServerWebExchangeMatchers.pathMatchers("/ws/**"),

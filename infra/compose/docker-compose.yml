@@ -119,6 +119,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       SEED_PASSWORD: ${SEED_PASSWORD:-}
+      # Seeded (as a hash) as merchant@swiftdrop.test's API key, so the Demo Store works on a fresh database (M2)
+      DEMO_STORE_API_KEY: ${DEMO_STORE_API_KEY:-}
     depends_on:
       postgres: { condition: service_healthy }
 

@@ -67,6 +67,16 @@ public class MerchantAccount {
         this.rejectionReason = reason;
     }
 
+    /** APPROVED -> SUSPENDED. Keys stay but stop working: introspection reports SUSPENDED and no token is issued. */
+    public void suspend(UUID adminId) {
+        review(MerchantStatus.SUSPENDED, adminId);
+    }
+
+    /** SUSPENDED -> APPROVED. Existing keys work again. */
+    public void reinstate(UUID adminId) {
+        review(MerchantStatus.APPROVED, adminId);
+    }
+
     private void review(MerchantStatus newStatus, UUID adminId) {
         this.status = newStatus;
         this.reviewedBy = adminId;
