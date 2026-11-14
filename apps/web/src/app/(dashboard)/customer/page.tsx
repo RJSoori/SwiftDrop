@@ -251,9 +251,9 @@ export default function CustomerDashboard() {
         intro="Calculate delivery fees, book island-wide courier shipments, and track your active parcels in real time."
       />
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <div className="grid gap-8 2xl:grid-cols-12">
         {/* Left Column: Book a Parcel or Booking Confirmation */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="2xl:col-span-5 space-y-6">
           {bookingSuccess ? (
             /* Confirmation Screen with QR code, Track & Receipt links */
             <Card className="border-2 border-emerald-500/40 bg-card shadow-md">
@@ -585,7 +585,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Right Column: Active Deliveries / My Parcels */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="2xl:col-span-7 space-y-4">
           <Card className="border-2 shadow-sm">
             <CardHeader>
               <div className="flex items-center justify-between">

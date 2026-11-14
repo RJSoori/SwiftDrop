@@ -354,7 +354,7 @@ export default function MerchantDashboard() {
                       <TableCell className="font-mono text-xs font-semibold text-foreground">
                         {order.trackingNo}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="max-w-[14rem] truncate text-xs text-muted-foreground" title={order.orderRef ?? undefined}>
                         {order.orderRef || "—"}
                       </TableCell>
                       <TableCell>

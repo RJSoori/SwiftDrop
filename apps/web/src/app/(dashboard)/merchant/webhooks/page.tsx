@@ -7,8 +7,26 @@ import type { ApiKey, WebhookDelivery, WebhookEndpoint } from "@/lib/merchant";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useMe } from "@/lib/session";
 
-export default function MerchantIntegrations() {
+export default function MerchantIntegrationsPage() {
+  const me = useMe();
+
+  if (me.isPending) return <p className="text-muted-foreground">Loading…</p>;
+  if (me.data?.merchantStatus !== "APPROVED") {
+    return (
+      <div className="max-w-2xl rounded-xl border-2 border-dashed border-tape bg-card p-6 sm:p-8">
+        <PageHeading
+          title="Webhooks are for approved merchants"
+          intro="Once a SwiftDrop admin approves your account, log out and back in, then connect your shop here."
+        />
+      </div>
+    );
+  }
+  return <MerchantIntegrations />;
+}
+
+function MerchantIntegrations() {
   const client = useQueryClient();
   const [secret, setSecret] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
