@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>reporting-service</artifactId>
-    <description>Reporting service (Phase 2 skeleton)</description>
+    <description>Reporting service: daily delivery counts built from parcel events (M8)</description>
 
     <dependencies>
         <dependency>
@@ -26,6 +26,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.9</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -45,6 +50,11 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.swiftdrop</groupId>
+            <artifactId>test-support</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
