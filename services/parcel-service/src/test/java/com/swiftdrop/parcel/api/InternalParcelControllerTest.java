@@ -107,13 +107,16 @@ class InternalParcelControllerTest {
     @DisplayName("GET /internal/v1/parcels/{id}/contact - returns recipient contact info")
     void getRecipientContact_success() throws Exception {
         UUID parcelId = UUID.randomUUID();
-        RecipientContactResponse response = new RecipientContactResponse("Nimal Silva", "+94770001122");
+        RecipientContactResponse response = new RecipientContactResponse(
+                "Nimal Silva", "+94770001122", "12 Lake Road", "Kandy");
 
         when(parcelService.getRecipientContact(parcelId)).thenReturn(response);
 
         mvc.perform(get("/internal/v1/parcels/" + parcelId + "/contact"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recipientName").value("Nimal Silva"))
-                .andExpect(jsonPath("$.recipientPhone").value("+94770001122"));
+                .andExpect(jsonPath("$.recipientPhone").value("+94770001122"))
+                .andExpect(jsonPath("$.dropoffAddress").value("12 Lake Road"))
+                .andExpect(jsonPath("$.dropoffCity").value("Kandy"));
     }
 }
