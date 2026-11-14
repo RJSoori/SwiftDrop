@@ -23,7 +23,7 @@ type ProblemDetail = {
   errors?: { field: string; message: string }[];
 };
 
-type ApiInit = Omit<RequestInit, "body"> & { json?: unknown };
+type ApiInit = Omit<RequestInit, "body"> & { body?: BodyInit | null; json?: unknown };
 
 // Endpoints where a 401 means "bad credentials" or "session over", not "access token expired".
 const NO_REFRESH = new Set(["/auth/login", "/auth/signup", "/auth/signup/merchant", "/auth/refresh"]);
@@ -40,12 +40,12 @@ function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
-function send(path: string, { json, headers, ...init }: ApiInit): Promise<Response> {
+function send(path: string, { json, body, headers, ...init }: ApiInit): Promise<Response> {
   return fetch(`/api/v1${path}`, {
     ...init,
     credentials: "same-origin",
     headers: json === undefined ? headers : { "Content-Type": "application/json", ...headers },
-    body: json === undefined ? undefined : JSON.stringify(json),
+    body: json === undefined ? body : JSON.stringify(json),
   });
 }
 

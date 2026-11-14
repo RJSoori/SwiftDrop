@@ -1,10 +1,13 @@
 package com.swiftdrop.dispatch.courier;
 
 import com.swiftdrop.dispatch.courier.CourierModels.AssignedDelivery;
+import com.swiftdrop.dispatch.courier.CourierModels.DeliveryDetails;
 import com.swiftdrop.dispatch.courier.CourierModels.DeliveryOutcome;
 import com.swiftdrop.dispatch.courier.CourierModels.DeliveryStatus;
+import com.swiftdrop.dispatch.courier.CourierModels.DeliverySummary;
 import com.swiftdrop.dispatch.courier.CourierModels.FailRequest;
 import com.swiftdrop.dispatch.courier.CourierModels.FailureReason;
+import com.swiftdrop.dispatch.courier.CourierModels.ParcelContact;
 import com.swiftdrop.dispatch.courier.CourierModels.StoredProof;
 import com.swiftdrop.dispatch.courier.CourierModels.StatusRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -20,9 +23,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -135,6 +140,35 @@ class CourierServiceTest {
     }
 
     @Test
+    void rejectsDeliveryWhenNoOtpExists() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "OUT_FOR_DELIVERY")));
+        when(proofRepository.findByIdAndParcelIdAndCourierId(proofId, parcelId, courierId))
+                .thenReturn(Optional.of(new DeliveryProof(parcelId, courierId, "proofs/demo")));
+        when(otpRepository.findByParcelIdForUpdate(parcelId)).thenReturn(Optional.empty());
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> courierService.deliver(parcelId, "1234", proofId, "Recipient"));
+
+        assertEquals(400, error.getStatusCode().value());
+    }
+
+    @Test
+    void rejectsAlreadyVerifiedOtp() {
+        DeliveryOtp otp = new DeliveryOtp(parcelId, passwordEncoder.encode("1234"), Instant.now().plusSeconds(3600));
+        otp.markVerified(Instant.now());
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "OUT_FOR_DELIVERY")));
+        when(proofRepository.findByIdAndParcelIdAndCourierId(proofId, parcelId, courierId))
+                .thenReturn(Optional.of(new DeliveryProof(parcelId, courierId, "proofs/demo")));
+        when(otpRepository.findByParcelIdForUpdate(parcelId)).thenReturn(Optional.of(otp));
+
+        assertEquals(DeliveryOutcome.OTP_ALREADY_VERIFIED,
+                courierService.deliver(parcelId, "1234", proofId, "Recipient"));
+        verify(parcelClient, never()).updateStatus(any(), any(), any(), any());
+    }
+
+    @Test
     void rejectsExpiredOtpOlderThanTwentyFourHours() {
         DeliveryOtp otp = new DeliveryOtp(parcelId, passwordEncoder.encode("1234"),
                 Instant.now().minus(Duration.ofHours(25)));
@@ -185,6 +219,20 @@ class CourierServiceTest {
     }
 
     @Test
+    void rejectsMissingAndEmptyProofFiles() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> courierService.uploadProof(parcelId, null)).getStatusCode().value());
+        MultipartFile empty = mock(MultipartFile.class);
+        when(empty.isEmpty()).thenReturn(true);
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> courierService.uploadProof(parcelId, empty)).getStatusCode().value());
+        verify(proofStorage, never()).store(eq(parcelId), eq(courierId), any(), any());
+    }
+
+    @Test
     void rejectsProofsThatAreNotJpegOrPng() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
@@ -194,6 +242,39 @@ class CourierServiceTest {
                 () -> courierService.uploadProof(parcelId, file));
 
         assertEquals(400, error.getStatusCode().value());
+        verify(proofStorage, never()).store(eq(parcelId), eq(courierId), any(), any());
+    }
+
+    @Test
+    void rejectsImagesWithInvalidJpegAndPngSignatures() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+        MockMultipartFile invalidJpeg = new MockMultipartFile("file", "proof.jpg", "image/jpeg",
+                new byte[]{1, 2, 3});
+        MockMultipartFile shortPng = new MockMultipartFile("file", "proof.png", "image/png",
+                new byte[]{(byte) 0x89, 0x50});
+
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> courierService.uploadProof(parcelId, invalidJpeg)).getStatusCode().value());
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> courierService.uploadProof(parcelId, shortPng)).getStatusCode().value());
+        verify(proofStorage, never()).store(eq(parcelId), eq(courierId), any(), any());
+    }
+
+    @Test
+    void mapsProofReadFailureToInternalServerError() throws Exception {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+        MultipartFile unreadable = mock(MultipartFile.class);
+        when(unreadable.isEmpty()).thenReturn(false);
+        when(unreadable.getSize()).thenReturn(10L);
+        when(unreadable.getContentType()).thenReturn("image/jpeg");
+        when(unreadable.getBytes()).thenThrow(new IOException("read failure"));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> courierService.uploadProof(parcelId, unreadable));
+
+        assertEquals(500, error.getStatusCode().value());
         verify(proofStorage, never()).store(eq(parcelId), eq(courierId), any(), any());
     }
 
@@ -213,6 +294,34 @@ class CourierServiceTest {
 
         assertEquals(proofId, courierService.uploadProof(parcelId, file));
         verify(proofStorage).store(parcelId, courierId, png, "image/png");
+    }
+
+    @Test
+    void listsCurrentCourierDeliveriesAndMarksFinishedStatuses() {
+        UUID failedParcel = UUID.randomUUID();
+        when(assignmentLookup.findTodaysDeliveries(courierId)).thenReturn(List.of(
+                new AssignedDelivery(parcelId, "IN_TRANSIT"),
+                new AssignedDelivery(proofId, "DELIVERED"),
+                new AssignedDelivery(failedParcel, "FAILED")));
+
+        List<DeliverySummary> result = courierService.todaysDeliveries();
+
+        assertEquals(List.of(
+                new DeliverySummary(parcelId, "IN_TRANSIT", false),
+                new DeliverySummary(proofId, "DELIVERED", true),
+                new DeliverySummary(failedParcel, "FAILED", true)), result);
+        verify(assignmentLookup).findTodaysDeliveries(courierId);
+    }
+
+    @Test
+    void returnsAssignedParcelDetailsWithContactData() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+        when(parcelClient.getContact(parcelId)).thenReturn(new ParcelContact("Recipient", "Campus"));
+
+        DeliveryDetails details = courierService.deliveryDetails(parcelId);
+
+        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Campus"), details);
     }
 
     @Test
@@ -254,5 +363,18 @@ class CourierServiceTest {
                         new StatusRequest(DeliveryStatus.OUT_FOR_DELIVERY, null)));
 
         assertEquals(409, error.getStatusCode().value());
+    }
+
+    @Test
+    void mapsOtherParcelServiceErrorsToBadGateway() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.IN_TRANSIT, null, null))
+                .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> courierService.updateStatus(parcelId, new StatusRequest(DeliveryStatus.IN_TRANSIT, null)));
+
+        assertEquals(502, error.getStatusCode().value());
     }
 }
