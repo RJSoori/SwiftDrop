@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.swiftdrop.assistant.domain.ChatMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -18,25 +22,31 @@ import java.util.Set;
  * <p>
  * The model's {@code content} goes back unchanged in the next request, so any {@code thoughtSignature} on its parts
  * is kept (Gemini rejects a turn with a missing signature). No generationConfig: the model's own defaults apply.
+ * <p>
+ * {@code LLM_MODEL} may list several models separated by commas. They are tried in order, because a free-tier model
+ * is often busy (HTTP 503) or does not answer in time; the first one that answers is used for the rest of the turn.
  */
 public class GeminiClient implements LlmClient {
 
     static final String BASE_URL = "https://generativelanguage.googleapis.com";
-    /** Stable, on the free tier, supports function calling (Gemini API model and pricing pages, Nov 2026). */
-    static final String DEFAULT_MODEL = "gemini-3.8-flash";
+    /** Free-tier models with function calling, quickest and least busy first (checked against the live API, Nov 2026). */
+    static final String DEFAULT_MODEL = "gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.1-flash-lite";
     /** finishReason values meaning the model would not answer. */
+    private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
     private static final Set<String> BLOCKED = Set.of("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII");
 
     private final RestClient http;
     private final ObjectMapper json;
     private final String apiKey;
     private final String model;
+    private final List<String> models;
 
     public GeminiClient(RestClient.Builder builder, ObjectMapper json, String baseUrl, String apiKey, String model) {
         this.http = LlmClient.http(builder, baseUrl).defaultHeader("x-goog-api-key", apiKey).build();
         this.json = json;
         this.apiKey = apiKey;
         this.model = model;
+        this.models = Arrays.stream(model.split(",")).map(String::trim).filter(m -> !m.isEmpty()).toList();
     }
 
     String model() {
@@ -98,6 +108,8 @@ public class GeminiClient implements LlmClient {
         private final ArrayNode contents;
         private JsonNode lastContent;
         private List<ToolCall> lastCalls = List.of();
+        /** Index of the model that answered last; later steps of the turn start from it. */
+        private int current;
 
         Turn(ObjectNode body, ArrayNode contents) {
             this.body = body;
@@ -106,8 +118,7 @@ public class GeminiClient implements LlmClient {
 
         @Override
         public Step next() {
-            JsonNode response = http.post().uri("/v1beta/models/{model}:generateContent", model)
-                    .body(body).retrieve().body(JsonNode.class);
+            JsonNode response = generate();
             String blocked = response.path("promptFeedback").path("blockReason").asText("");
             if (!blocked.isEmpty()) {
                 return new Step("", List.of(), true, "prompt:" + blocked);
@@ -130,6 +141,23 @@ public class GeminiClient implements LlmClient {
             lastContent = candidate.path("content");
             lastCalls = calls;
             return new Step(text.toString().trim(), calls, false, finish);
+        }
+
+        /** Tries the models in order from the one that answered last; throws the last error when none answers. */
+        private JsonNode generate() {
+            RestClientException last = null;
+            for (int i = current; i < models.size(); i++) {
+                try {
+                    JsonNode response = http.post().uri("/v1beta/models/{model}:generateContent", models.get(i))
+                            .body(body).retrieve().body(JsonNode.class);
+                    current = i;
+                    return response;
+                } catch (RestClientException e) {
+                    log.warn("Gemini model {} did not answer: {}", models.get(i), e.getClass().getSimpleName());
+                    last = e;
+                }
+            }
+            throw last;
         }
 
         /** The model turn goes back unchanged, then one user turn with a functionResponse per call. */

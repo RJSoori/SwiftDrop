@@ -74,6 +74,7 @@ class AssistantApiTest {
     static void props(DynamicPropertyRegistry registry) {
         registry.add("swiftdrop.llm.base-url", llm::baseUrl);
         registry.add("swiftdrop.llm.api-key", () -> "test-key");
+        registry.add("swiftdrop.llm.model", () -> "model-a,model-b");
         registry.add("swiftdrop.gateway-url", gateway::baseUrl);
     }
 
@@ -105,7 +106,8 @@ class AssistantApiTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
-    private static final String GENERATE = "/v1beta/models/gemini-3.8-flash:generateContent";
+    private static final String GENERATE = "/v1beta/models/model-a:generateContent";
+    private static final String GENERATE_FALLBACK = "/v1beta/models/model-b:generateContent";
 
     /** The model asks for {@code tool} with {@code args}, then answers {@code answer}. */
     private void scriptLlm(String tool, String args, String answer) {
@@ -228,6 +230,21 @@ class AssistantApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reply").value(ChatService.FALLBACK_REPLY))
                 .andExpect(jsonPath("$.sessionId").isNotEmpty());
+    }
+
+    @Test
+    void aBusyModelFallsBackToTheNextOneInTheList() throws Exception {
+        llm.stubFor(post(GENERATE).willReturn(aResponse().withStatus(503)
+                .withHeader("Content-Type", "application/json").withBody("{\"error\":{\"status\":\"UNAVAILABLE\"}}")));
+        llm.stubFor(post(GENERATE_FALLBACK).willReturn(okJson("""
+                {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[{"text":"Answer from the second model."}]}}]}""")));
+
+        chat("{\"message\":\"Where is my parcel?\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value("Answer from the second model."));
+
+        llm.verify(1, postRequestedFor(urlEqualTo(GENERATE)));
+        llm.verify(1, postRequestedFor(urlEqualTo(GENERATE_FALLBACK)));
     }
 
     @Test
