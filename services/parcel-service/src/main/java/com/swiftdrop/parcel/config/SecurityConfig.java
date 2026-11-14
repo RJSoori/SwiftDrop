@@ -51,8 +51,8 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers(HttpMethod.POST, "/internal/v1/parcels").access(internalToken)
-                        .requestMatchers(HttpMethod.GET, "/internal/v1/parcels/*/access").access(internalToken)
+                        // Every internal endpoint (create, status, contact, access) needs the shared X-Internal-Token
+                        .requestMatchers("/internal/**").access(internalToken)
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 )

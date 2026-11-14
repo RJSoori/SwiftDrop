@@ -97,7 +97,7 @@ class InternalParcelControllerTest {
         when(parcelService.updateStatusInternal(eq(parcelId), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Illegal status transition from CREATED to DELIVERED"));
 
-        mvc.perform(post("/internal/v1/parcels/" + parcelId + "/status")
+        mvc.perform(post("/internal/v1/parcels/" + parcelId + "/status").header("X-Internal-Token", "test-internal-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
@@ -112,11 +112,24 @@ class InternalParcelControllerTest {
 
         when(parcelService.getRecipientContact(parcelId)).thenReturn(response);
 
-        mvc.perform(get("/internal/v1/parcels/" + parcelId + "/contact"))
+        mvc.perform(get("/internal/v1/parcels/" + parcelId + "/contact").header("X-Internal-Token", "test-internal-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recipientName").value("Nimal Silva"))
                 .andExpect(jsonPath("$.recipientPhone").value("+94770001122"))
                 .andExpect(jsonPath("$.dropoffAddress").value("12 Lake Road"))
                 .andExpect(jsonPath("$.dropoffCity").value("Kandy"));
+    }
+
+    @Test
+    @DisplayName("Internal status and contact endpoints reject a missing or wrong X-Internal-Token")
+    void statusAndContactNeedTheInternalToken() throws Exception {
+        UUID parcelId = UUID.randomUUID();
+        mvc.perform(post("/internal/v1/parcels/" + parcelId + "/status").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"IN_TRANSIT\"}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/internal/v1/parcels/" + parcelId + "/contact")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/internal/v1/parcels/" + parcelId + "/contact").header("X-Internal-Token", "wrong"))
+                .andExpect(status().isUnauthorized());
+        org.mockito.Mockito.verifyNoInteractions(parcelService);
     }
 }
