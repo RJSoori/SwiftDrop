@@ -10,6 +10,7 @@ import com.swiftdrop.dispatch.courier.CourierModels.FailureReason;
 import com.swiftdrop.dispatch.courier.CourierModels.ParcelContact;
 import com.swiftdrop.dispatch.courier.CourierModels.StoredProof;
 import com.swiftdrop.dispatch.courier.CourierModels.StatusRequest;
+import com.swiftdrop.dispatch.repository.AssignmentRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,17 +95,23 @@ class CourierServiceTest {
     void courierBCannotReadOrUpdateParcelAssignedToCourierA() {
         UUID courierAId = UUID.randomUUID();
         UUID courierBId = courierId;
-        when(assignmentLookup.findAssignment(courierAId, parcelId))
-                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(assignmentLookup.findAssignment(courierBId, parcelId)).thenReturn(Optional.empty());
+        AssignmentRepository assignments = mock(AssignmentRepository.class);
+        when(assignments.findActiveDeliveryByCourierIdAndParcelId(courierAId, parcelId))
+                .thenReturn(Optional.of(deliveryProjection(parcelId, "IN_TRANSIT")));
+        when(assignments.findActiveDeliveryByCourierIdAndParcelId(courierBId, parcelId))
+                .thenReturn(Optional.empty());
+        CourierService repositoryBackedService = new CourierService(
+                new RepositoryAssignmentLookup(assignments, Clock.systemUTC()), parcelClient,
+                notificationClient, proofStorage, otpRepository, proofRepository, passwordEncoder,
+                new CourierProperties(Duration.ofHours(24), 5, DataSize.ofMegabytes(5), "proofs"), Clock.systemUTC());
 
-        assertThrows(AccessDeniedException.class, () -> courierService.deliveryDetails(parcelId));
-        assertThrows(AccessDeniedException.class, () -> courierService.updateStatus(parcelId,
+        assertThrows(AccessDeniedException.class, () -> repositoryBackedService.deliveryDetails(parcelId));
+        assertThrows(AccessDeniedException.class, () -> repositoryBackedService.updateStatus(parcelId,
                 new StatusRequest(DeliveryStatus.IN_TRANSIT, null)));
 
-        verify(assignmentLookup, times(2)).findAssignment(courierBId, parcelId);
+        verify(assignments, times(2)).findActiveDeliveryByCourierIdAndParcelId(courierBId, parcelId);
         verify(parcelClient, never()).getContact(any());
-        verify(parcelClient, never()).updateStatus(any(), any(), any(), any());
+        verify(parcelClient, never()).updateStatus(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -165,7 +172,7 @@ class CourierServiceTest {
 
         assertEquals(DeliveryOutcome.OTP_ALREADY_VERIFIED,
                 courierService.deliver(parcelId, "1234", proofId, "Recipient"));
-        verify(parcelClient, never()).updateStatus(any(), any(), any(), any());
+        verify(parcelClient, never()).updateStatus(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -181,7 +188,7 @@ class CourierServiceTest {
 
         assertEquals(DeliveryOutcome.OTP_EXPIRED,
                 courierService.deliver(parcelId, "1234", proofId, "Recipient"));
-        verify(parcelClient, never()).updateStatus(any(), any(), any(), any());
+        verify(parcelClient, never()).updateStatus(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -194,8 +201,8 @@ class CourierServiceTest {
                 .thenReturn(Optional.of(proof));
         when(otpRepository.findByParcelIdForUpdate(parcelId)).thenReturn(Optional.of(otp));
         when(proofStorage.proofUrl("proofs/demo")).thenReturn("https://proofs.invalid/proofs/demo");
-        when(parcelClient.updateStatus(parcelId, DeliveryStatus.DELIVERED, null,
-                "https://proofs.invalid/proofs/demo")).thenReturn(DeliveryStatus.DELIVERED);
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.DELIVERED, courierId, null,
+                "https://proofs.invalid/proofs/demo", null)).thenReturn(DeliveryStatus.DELIVERED);
 
         assertEquals(DeliveryOutcome.DELIVERED,
                 courierService.deliver(parcelId, "1234", proofId, "Recipient"));
@@ -317,30 +324,30 @@ class CourierServiceTest {
     void returnsAssignedParcelDetailsWithContactData() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.getContact(parcelId)).thenReturn(new ParcelContact("Recipient", "Campus"));
+        when(parcelClient.getContact(parcelId)).thenReturn(new ParcelContact("Recipient", "Recipient phone"));
 
         DeliveryDetails details = courierService.deliveryDetails(parcelId);
 
-        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Campus"), details);
+        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Recipient phone"), details);
     }
 
     @Test
     void forwardsFailureReasonAndNote() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.updateStatus(parcelId, DeliveryStatus.FAILED, "OTHER: Gate was closed", null))
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.FAILED, courierId, "Gate was closed", null, "OTHER"))
                 .thenReturn(DeliveryStatus.FAILED);
 
         courierService.failDelivery(parcelId, new FailRequest(FailureReason.OTHER, " Gate was closed "));
 
-        verify(parcelClient).updateStatus(parcelId, DeliveryStatus.FAILED, "OTHER: Gate was closed", null);
+        verify(parcelClient).updateStatus(parcelId, DeliveryStatus.FAILED, courierId, "Gate was closed", null, "OTHER");
     }
 
     @Test
     void forwardsOnlyOwnedParcelStatusUpdates() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.updateStatus(parcelId, DeliveryStatus.OUT_FOR_DELIVERY, "On the way", null))
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.OUT_FOR_DELIVERY, courierId, "On the way", null, null))
                 .thenReturn(DeliveryStatus.OUT_FOR_DELIVERY);
 
         DeliveryStatus result = courierService.updateStatus(parcelId,
@@ -355,7 +362,7 @@ class CourierServiceTest {
     void preservesParcelServiceConflictForIllegalStatusMoves() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.updateStatus(parcelId, DeliveryStatus.OUT_FOR_DELIVERY, null, null))
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.OUT_FOR_DELIVERY, courierId, null, null, null))
                 .thenThrow(new HttpClientErrorException(HttpStatus.CONFLICT));
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
@@ -369,12 +376,26 @@ class CourierServiceTest {
     void mapsOtherParcelServiceErrorsToBadGateway() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.updateStatus(parcelId, DeliveryStatus.IN_TRANSIT, null, null))
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.IN_TRANSIT, courierId, null, null, null))
                 .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE));
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> courierService.updateStatus(parcelId, new StatusRequest(DeliveryStatus.IN_TRANSIT, null)));
 
         assertEquals(502, error.getStatusCode().value());
+    }
+
+    private static AssignmentRepository.DeliveryProjection deliveryProjection(UUID parcelId, String status) {
+        return new AssignmentRepository.DeliveryProjection() {
+            @Override
+            public UUID getParcelId() {
+                return parcelId;
+            }
+
+            @Override
+            public String getStatus() {
+                return status;
+            }
+        };
     }
 }
