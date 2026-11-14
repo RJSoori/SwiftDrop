@@ -336,7 +336,7 @@ public class ParcelService {
     }
 
     /**
-     * Returns recipient contact details (name and phone) for M5 and M9.
+     * Returns recipient contact and drop-off details for M5 and M9.
      */
     @Transactional(readOnly = true)
     public RecipientContactResponse getRecipientContact(UUID parcelId) {
@@ -345,7 +345,9 @@ public class ParcelService {
 
         return new RecipientContactResponse(
                 parcel.getRecipientName() != null ? parcel.getRecipientName() : "Customer",
-                parcel.getRecipientPhone() != null ? parcel.getRecipientPhone() : ""
+                parcel.getRecipientPhone() != null ? parcel.getRecipientPhone() : "",
+                parcel.getDropoffAddress(),
+                parcel.getDropoffCity()
         );
     }
 

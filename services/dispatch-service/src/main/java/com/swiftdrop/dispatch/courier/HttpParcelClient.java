@@ -30,7 +30,8 @@ public class HttpParcelClient implements ParcelClient {
                     .retrieve()
                     .body(RecipientContactResponse.class);
             if (response == null) throw serviceUnavailable();
-            return new ParcelContact(response.recipientName(), response.recipientPhone());
+            return new ParcelContact(response.recipientName(), response.recipientPhone(),
+                    response.dropoffAddress(), response.dropoffCity());
         } catch (RestClientResponseException ex) {
             throw serviceUnavailable();
         } catch (RestClientException ex) {
@@ -76,6 +77,7 @@ public class HttpParcelClient implements ParcelClient {
     private record ParcelStatusResponse(DeliveryStatus currentStatus) {
     }
 
-    private record RecipientContactResponse(String recipientName, String recipientPhone) {
+    private record RecipientContactResponse(String recipientName, String recipientPhone,
+                                            String dropoffAddress, String dropoffCity) {
     }
 }

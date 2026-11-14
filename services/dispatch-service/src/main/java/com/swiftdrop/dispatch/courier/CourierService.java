@@ -10,6 +10,8 @@ import com.swiftdrop.dispatch.courier.CourierModels.FailRequest;
 import com.swiftdrop.dispatch.courier.CourierModels.ParcelContact;
 import com.swiftdrop.dispatch.courier.CourierModels.StatusRequest;
 import com.swiftdrop.dispatch.courier.CourierModels.StoredProof;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +33,7 @@ import java.util.UUID;
 @Service
 public class CourierService {
 
+    private static final Logger log = LoggerFactory.getLogger(CourierService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AssignmentLookup assignmentLookup;
@@ -69,7 +72,8 @@ public class CourierService {
     public DeliveryDetails deliveryDetails(UUID parcelId) {
         AssignedDelivery assignment = requireAssignment(parcelId);
         ParcelContact contact = parcelClient.getContact(parcelId);
-        return new DeliveryDetails(parcelId, assignment.status(), contact.recipientName(), contact.recipientPhone());
+        return new DeliveryDetails(parcelId, assignment.status(), contact.recipientName(), contact.recipientPhone(),
+                contact.dropoffAddress(), contact.dropoffCity());
     }
 
     public DeliveryStatus updateStatus(UUID parcelId, StatusRequest request) {
@@ -81,7 +85,11 @@ public class CourierService {
             String code = String.format(Locale.ROOT, "%04d", RANDOM.nextInt(10_000));
             Instant expiresAt = Instant.now(clock).plus(properties.otpTtl());
             otpRepository.saveAndFlush(new DeliveryOtp(parcelId, passwordEncoder.encode(code), expiresAt));
-            notificationClient.sendOtp(parcelId, code);
+            try {
+                notificationClient.sendOtp(parcelId, code);
+            } catch (NotificationClientException ex) {
+                log.warn("OTP notification could not be sent for parcel {}", parcelId);
+            }
         }
         return updatedStatus;
     }
