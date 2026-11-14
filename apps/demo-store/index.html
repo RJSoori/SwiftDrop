@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Demo Store | SwiftDrop</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f7f5ef;
+        color: #25352d;
+        font:
+          16px system-ui,
+          sans-serif;
+      }
+      header {
+        background: #183f32;
+        color: white;
+        padding: 24px max(20px, calc((100vw - 1050px) / 2));
+      }
+      main {
+        max-width: 1050px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .card {
+        background: white;
+        border: 1px solid #dfdfd5;
+        border-radius: 16px;
+        padding: 24px;
+      }
+      h1 {
+        margin: 8px 0;
+        font-size: 36px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      .muted {
+        color: #647268;
+      }
+      button {
+        background: #1d6049;
+        color: white;
+        border: 0;
+        padding: 13px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      .product {
+        font-size: 56px;
+        margin: 10px 0;
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 30px;
+        background: #eef5ec;
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #f7f7f2;
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 13px;
+      }
+      .event {
+        border-top: 1px solid #ddd;
+        padding: 16px 0;
+      }
+      #message {
+        min-height: 24px;
+      }
+      a {
+        color: #22634c;
+      }
+      @media (max-width: 700px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 29px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span>SWIFTDROP / DEMO STORE</span>
+      <h1>A small shop. A live delivery.</h1>
+      <p>Place a test order and watch signed delivery updates arrive.</p>
+    </header>
+    <main>
+      <div class="grid">
+        <section class="card">
+          <span class="pill">Test product</span>
+          <div class="product" aria-hidden="true">&#128230;</div>
+          <h2>Ceylon tea gift box</h2>
+          <p class="muted">
+            2 kg &middot; Standard delivery &middot; Colombo to Kandy
+          </p>
+          <p>This demo books a real parcel in your local SwiftDrop stack.</p>
+          <button id="place">Place test order</button>
+          <button id="new" hidden>Start another order</button>
+          <p id="message" role="status" aria-live="polite"></p>
+          <pre id="result" hidden></pre>
+        </section>
+        <section class="card">
+          <h2>Connection setup</h2>
+          <p id="config" class="muted">Checking configuration...</p>
+          <p>
+            In the merchant workspace, create an API key and register this
+            webhook URL:
+          </p>
+          <pre>http://demo-store:4000/webhooks/swiftdrop</pre>
+          <p>
+            Put the API key and the secret shown once into
+            <code>DEMO_STORE_API_KEY</code> and
+            <code>DEMO_STORE_WEBHOOK_SECRET</code> in your Compose environment,
+            then recreate this container.
+          </p>
+          <p class="muted">Credentials stay on this server.</p>
+        </section>
+      </div>
+      <section class="card" style="margin-top: 24px">
+        <h2>Verified webhook inbox</h2>
+        <p class="muted">
+          Updates every 3 seconds. Duplicate event IDs are acknowledged once.
+        </p>
+        <div id="events" aria-live="polite">
+          No events yet. Move a parcel through its delivery statuses.
+        </div>
+      </section>
+    </main>
+    <script>
+      let key = crypto.randomUUID();
+      const button = document.querySelector("#place"),
+        newButton = document.querySelector("#new"),
+        message = document.querySelector("#message"),
+        result = document.querySelector("#result");
+      button.onclick = async () => {
+        button.disabled = true;
+        message.textContent = "Booking your test parcel...";
+        try {
+          const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: { "Idempotency-Key": key },
+          });
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.detail || data.error || "Booking failed");
+          result.hidden = false;
+          result.textContent = JSON.stringify(data, null, 2);
+          message.textContent =
+            "Booked: " +
+            data.trackingNo +
+            " | LKR " +
+            Number(data.feeLkr).toFixed(2);
+          newButton.hidden = false;
+          button.textContent = "Repeat same request";
+        } catch (error) {
+          message.textContent = error.message;
+          button.textContent = "Retry this order";
+        } finally {
+          button.disabled = false;
+        }
+      };
+      newButton.onclick = () => {
+        key = crypto.randomUUID();
+        newButton.hidden = true;
+        result.hidden = true;
+        message.textContent = "Ready for a new test order.";
+        button.textContent = "Place test order";
+      };
+      async function refresh() {
+        try {
+          const response = await fetch("/api/events");
+          if (!response.ok) return;
+          const events = await response.json();
+          const root = document.querySelector("#events");
+          if (events.length) {
+            root.replaceChildren();
+            for (const event of events) {
+              const item = document.createElement("div");
+              item.className = "event";
+              const title = document.createElement("strong");
+              title.textContent =
+                (event.event.data?.trackingNo || "Parcel") +
+                " | " +
+                (event.event.data?.toStatus || event.event.eventType);
+              const text = document.createElement("p");
+              text.className = "muted";
+              text.textContent = event.at + " | " + event.eventId;
+              const payload = document.createElement("pre");
+              payload.textContent = JSON.stringify(event.event, null, 2);
+              item.append(title, text, payload);
+              root.append(item);
+            }
+          }
+        } catch {}
+      }
+      fetch("/api/config")
+        .then((r) => r.json())
+        .then((c) => {
+          document.querySelector("#config").textContent =
+            "API key: " +
+            (c.apiKeyConfigured ? "configured" : "missing") +
+            " | Webhook secret: " +
+            (c.webhookSecretConfigured ? "configured" : "missing");
+        });
+      refresh();
+      setInterval(refresh, 3000);
+    </script>
+  </body>
+</html>

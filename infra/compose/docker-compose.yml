@@ -142,6 +142,8 @@ services:
     environment:
       <<: *spring-env
       SERVER_PORT: "8083"
+      AUTH_SERVICE_URL: http://auth-service:8081
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DB_USERNAME: dispatch_svc
       DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
       PARCEL_SERVICE_URL: http://parcel-service:8082
@@ -152,6 +154,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_PROOFS: ${MINIO_BUCKET_PROOFS:-proofs}
     depends_on:
+      auth-service: { condition: service_healthy }
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       minio: { condition: service_healthy }
@@ -167,6 +170,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis # idempotency keys (M6)
       PARCEL_SERVICE_URL: http://parcel-service:8082
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?run scripts/dev-keys.sh} # webhook secrets at rest
+      WEBHOOK_ALLOWED_LOCAL_HOSTS: ${WEBHOOK_ALLOWED_LOCAL_HOSTS:-demo-store}
       WEBHOOK_RETRY_DELAYS: ${WEBHOOK_RETRY_DELAYS:-PT5S,PT10S,PT20S,PT40S}
     depends_on:
       postgres: { condition: service_healthy }
@@ -227,6 +231,7 @@ services:
       DB_PASSWORD: ${AI_DB_PASSWORD}
       GATEWAY_URL: http://gateway:8080 # tools call our API with the customer's own JWT (M1)
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
     depends_on:
       postgres: { condition: service_healthy }
 

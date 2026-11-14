@@ -43,3 +43,13 @@ management:
   health:
     rabbit:
       enabled: false
+
+# Broker messages are wakeups; the database journal recovers deliveries after outages.
+spring.rabbitmq.publisher-confirm-type: correlated
+spring.rabbitmq.listener.simple.retry.enabled: true
+spring.rabbitmq.listener.simple.retry.max-attempts: 5
+spring.rabbitmq.listener.simple.retry.initial-interval: 1000
+spring.rabbitmq.listener.simple.default-requeue-rejected: false
+spring.data.redis.connect-timeout: 1s
+spring.data.redis.timeout: 1s
+spring.rabbitmq.publisher-returns: true

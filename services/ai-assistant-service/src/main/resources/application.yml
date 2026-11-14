@@ -28,3 +28,12 @@ management:
     web:
       exposure:
         include: health,info
+
+swiftdrop:
+  # Tools call our own API through the gateway with the customer's JWT
+  gateway-url: ${GATEWAY_URL:http://localhost:8080}
+  llm:
+    base-url: https://api.anthropic.com
+    # Empty: the assistant answers with a fixed friendly reply instead of calling the model
+    api-key: ${LLM_API_KEY:}
+    model: ${LLM_MODEL:claude-opus-5-5}
