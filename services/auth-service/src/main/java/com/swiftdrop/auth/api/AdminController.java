@@ -48,6 +48,16 @@ public class AdminController {
         return adminService.rejectMerchant(id, request.reason(), CurrentUser.id());
     }
 
+    @PostMapping("/merchants/{id}/suspend")
+    public MerchantApplication suspend(@PathVariable UUID id) {
+        return adminService.suspendMerchant(id, CurrentUser.id());
+    }
+
+    @PostMapping("/merchants/{id}/reinstate")
+    public MerchantApplication reinstate(@PathVariable UUID id) {
+        return adminService.reinstateMerchant(id, CurrentUser.id());
+    }
+
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
     public UserSummary createStaff(@Valid @RequestBody CreateStaffRequest request) {

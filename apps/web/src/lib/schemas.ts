@@ -25,7 +25,18 @@ export const createStaffSchema = signupSchema.extend({
   role: z.enum(["COURIER", "DISPATCHER"], "Choose courier or dispatcher"),
 });
 
+// Mirrors auth-service credentials/CredentialDtos.CreateCredentialRequest.
+export const createCredentialSchema = z.object({
+  type: z.enum(["API_KEY", "CLIENT"], "Choose an API key or an OAuth client"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name it after the system that will use it, e.g. Shop backend")
+    .max(80, "Keep it under 80 characters"),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type MerchantSignupInput = z.infer<typeof merchantSignupSchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
+export type CreateCredentialInput = z.infer<typeof createCredentialSchema>;
