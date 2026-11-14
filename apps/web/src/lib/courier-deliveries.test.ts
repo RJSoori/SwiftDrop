@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deliveryDetailsSchema,
+  deliveryOtpSchema,
   nextCourierStatuses,
   proofImageSchema,
   proofUploadResponseSchema,
@@ -73,6 +74,22 @@ describe("courier status updates", () => {
     });
     expect(statusUpdateSchema.safeParse({ toStatus: "DELIVERED", note: "" }).success).toBe(false);
     expect(statusUpdateSchema.safeParse({ toStatus: "PICKED_UP", note: "x".repeat(501) }).success).toBe(false);
+  });
+});
+
+describe("courier delivery OTP validation", () => {
+  it("accepts a four-digit OTP and a trimmed recipient name", () => {
+    expect(deliveryOtpSchema.parse({ otp: "0123", recipientName: "  Nimal Perera  " })).toEqual({
+      otp: "0123",
+      recipientName: "Nimal Perera",
+    });
+  });
+
+  it("requires exactly four digits and a non-empty recipient name", () => {
+    for (const otp of ["123", "12345", "12a4", "１２３４"]) {
+      expect(deliveryOtpSchema.safeParse({ otp, recipientName: "Nimal Perera" }).success).toBe(false);
+    }
+    expect(deliveryOtpSchema.safeParse({ otp: "1234", recipientName: "   " }).success).toBe(false);
   });
 });
 

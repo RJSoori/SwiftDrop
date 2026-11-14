@@ -33,6 +33,11 @@ export const statusUpdateSchema = z.object({
   note: z.string().trim().max(500, "Keep the note under 500 characters"),
 });
 
+export const deliveryOtpSchema = z.object({
+  otp: z.string().regex(/^\d{4}$/, "Enter the 4-digit OTP"),
+  recipientName: z.string().trim().min(1, "Enter the recipient’s name").max(120, "Keep the name under 120 characters"),
+});
+
 export const proofImageSchema = z
   .file()
   .max(5 * 1024 * 1024, "Photo must be 5 MB or smaller")
@@ -47,6 +52,7 @@ export type DeliveryStatus = DeliverySummary["status"];
 export type DeliveryDetails = z.infer<typeof deliveryDetailsSchema>;
 export type CourierUpdateStatus = z.infer<typeof courierUpdateStatusSchema>;
 export type StatusUpdateInput = z.infer<typeof statusUpdateSchema>;
+export type DeliveryOtpInput = z.infer<typeof deliveryOtpSchema>;
 
 const NEXT_COURIER_STATUSES: Record<DeliveryStatus, CourierUpdateStatus[]> = {
   CREATED: ["PICKED_UP"],
