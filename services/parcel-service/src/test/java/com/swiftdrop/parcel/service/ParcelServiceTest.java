@@ -174,7 +174,7 @@ class ParcelServiceTest {
         existingParcel.setCurrentStatus(ParcelStatus.CREATED);
 
         when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(existingParcel));
-        when(parcelRepository.save(any(Parcel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(parcelRepository.saveAndFlush(any(Parcel.class))).thenAnswer(inv -> inv.getArgument(0));
 
         InternalUpdateStatusRequest req = new InternalUpdateStatusRequest(
                 ParcelStatus.PICKED_UP, courierId, "Parcel collected from sender", null, null, null
