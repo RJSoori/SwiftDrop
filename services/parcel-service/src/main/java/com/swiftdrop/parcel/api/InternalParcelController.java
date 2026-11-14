@@ -49,7 +49,7 @@ public class InternalParcelController {
 
     /**
      * GET /internal/v1/parcels/{id}/contact: Called by M5 (notifications) and M9 (courier)
-     * to fetch recipient contact information (name and phone).
+     * to fetch recipient contact and drop-off information.
      */
     @GetMapping("/{id}/contact")
     public ResponseEntity<RecipientContactResponse> getRecipientContact(@PathVariable UUID id) {
