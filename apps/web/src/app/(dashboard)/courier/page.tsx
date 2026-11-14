@@ -1,14 +1,17 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { FormError, FormField } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
-import { useTodaysDeliveries, type DeliverySummary, type DeliveryStatus } from "@/lib/courier-deliveries";
+import { courierDeliveryTopics, useTodaysDeliveries, type DeliverySummary, type DeliveryStatus } from "@/lib/courier-deliveries";
+import { useLiveUpdates } from "@/lib/realtime";
+import { useMe } from "@/lib/session";
 
 type DeliveryTab = "active" | "completed";
 
@@ -22,9 +25,17 @@ const STATUS_LABELS: Record<DeliveryStatus, string> = {
 };
 
 export default function CourierDashboard() {
+  const me = useMe();
+  const queryClient = useQueryClient();
+  const liveUpdates = useLiveUpdates<unknown>(courierDeliveryTopics(me.data?.id));
   const deliveries = useTodaysDeliveries();
   const [tab, setTab] = useState<DeliveryTab>("active");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (Object.keys(liveUpdates.data).length === 0) return;
+    void queryClient.invalidateQueries({ queryKey: ["courier", "deliveries", "today"] });
+  }, [liveUpdates.data, queryClient]);
 
   const active = deliveries.data?.filter((delivery) => !delivery.completed) ?? [];
   const completed = deliveries.data?.filter((delivery) => delivery.completed) ?? [];
