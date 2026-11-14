@@ -1,16 +1,21 @@
 package com.swiftdrop.parcel.dto;
 
 import com.swiftdrop.parcel.domain.PricingStrategyType;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/** Customer booking. Bean Validation runs on the controller's @Valid, so a bad body is a 400 problem. */
 public record CreateParcelRequest(
-        String pickupAddress,
-        String dropoffAddress,
-        BigDecimal weightKg,
-        BigDecimal lengthCm,
-        BigDecimal widthCm,
-        BigDecimal heightCm,
+        @NotBlank String pickupAddress,
+        @NotBlank String dropoffAddress,
+        @NotNull @Positive @DecimalMax("100") BigDecimal weightKg,
+        @Positive BigDecimal lengthCm,
+        @Positive BigDecimal widthCm,
+        @Positive BigDecimal heightCm,
         String size,
         PricingStrategyType strategy,
         UUID pickupZoneId,
@@ -22,8 +27,8 @@ public record CreateParcelRequest(
         String dropoffCity,
         BigDecimal dropoffLat,
         BigDecimal dropoffLng,
-        String recipientName,
-        String recipientPhone,
+        @NotBlank String recipientName,
+        @NotBlank String recipientPhone,
         String serviceType
 ) {
     public CreateParcelRequest(
@@ -49,9 +54,6 @@ public record CreateParcelRequest(
         }
         if (strategy == null) {
             strategy = PricingStrategyType.WEIGHT_TIERED;
-        }
-        if (weightKg == null || weightKg.compareTo(BigDecimal.ZERO) <= 0) {
-            weightKg = BigDecimal.ONE;
         }
         if (serviceType == null || serviceType.isBlank()) {
             serviceType = "STANDARD";
