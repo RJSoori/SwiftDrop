@@ -41,7 +41,7 @@ public final class CourierModels {
     public record AssignedDelivery(UUID parcelId, String status) {
     }
 
-    public record ParcelContact(String recipientName, String dropOffAddress) {
+    public record ParcelContact(String recipientName, String recipientPhone) {
     }
 
     public record StoredProof(String objectKey) {
@@ -53,7 +53,7 @@ public final class CourierModels {
     public record DeliverySummary(UUID parcelId, String status, boolean completed) {
     }
 
-    public record DeliveryDetails(UUID parcelId, String status, String recipientName, String dropOffAddress) {
+    public record DeliveryDetails(UUID parcelId, String status, String recipientName, String recipientPhone) {
     }
 
     public record ProofUploadResponse(UUID proofId) {

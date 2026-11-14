@@ -39,10 +39,14 @@ swiftdrop:
   seed:
     enabled: ${SEED_DEMO_DATA:false}
   courier:
+    assignment-lookup: ${COURIER_ASSIGNMENT_LOOKUP:database}
+    parcel-client: ${COURIER_PARCEL_CLIENT:http}
+    parcel-service-url: ${PARCEL_SERVICE_URL:http://localhost:8082}
+    proof-storage: ${COURIER_PROOF_STORAGE:minio}
     otp-ttl: ${COURIER_OTP_TTL:PT24H}
     otp-max-attempts: ${COURIER_OTP_MAX_ATTEMPTS:5}
     proof-max-file-size: ${COURIER_PROOF_MAX_FILE_SIZE:5MB}
-    proof-bucket: ${COURIER_PROOF_BUCKET:proofs}
+    proof-bucket: ${MINIO_BUCKET_PROOFS:${COURIER_PROOF_BUCKET:proofs}}
 
 management:
   endpoints:
