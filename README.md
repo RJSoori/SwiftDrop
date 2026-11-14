@@ -166,6 +166,6 @@ scripts/         dev-keys.sh, seed-demo.mjs, reset-demo.sh
 docs/            diagrams
 ```
 
-Member 5 merchant integration setup, API contract and demo: [docs/member-5-merchant-integration.md](docs/member-5-merchant-integration.md).
+Merchant integration setup, API contract and demo: [docs/merchant-integration.md](docs/merchant-integration.md).
 
 Member 8 delivery zones, zone pricing and reports: [docs/member-8-zones-pricing-reports.md](docs/member-8-zones-pricing-reports.md).
