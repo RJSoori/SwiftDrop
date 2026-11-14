@@ -121,6 +121,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       SEED_PASSWORD: ${SEED_PASSWORD:-}
+      # Seeded (as a hash) as merchant@swiftdrop.test's API key, so the Demo Store works on a fresh database (M2)
+      DEMO_STORE_API_KEY: ${DEMO_STORE_API_KEY:-}
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -148,11 +150,10 @@ services:
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DB_USERNAME: dispatch_svc
       DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
-      PARCEL_SERVICE_URL: http://parcel-service:8082
+      PARCEL_SERVICE_URL: ${PARCEL_SERVICE_URL:-http://parcel-service:8082}
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
-      COURIER_STUBS: "false" # use the services above and MinIO, not the in-memory stubs
       # Proof photos (M9). Local dev uses the MinIO root login; production would use a scoped key.
-      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-swiftdrop}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_PROOFS: ${MINIO_BUCKET_PROOFS:-proofs}

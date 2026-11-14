@@ -7,9 +7,12 @@ export function ServiceWorkerRegister() {
     if (!("serviceWorker" in navigator)) return;
 
     const register = () => {
-      void navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
-        console.error("Could not register the SwiftDrop service worker.", error);
-      });
+      void navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch((error: unknown) => {
+          console.error("Could not register or update the SwiftDrop service worker.", error);
+        });
     };
 
     if (document.readyState === "complete") {

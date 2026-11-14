@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStaffSchema, loginSchema, merchantSignupSchema, signupSchema } from "./schemas";
+import { createCredentialSchema, createStaffSchema, loginSchema, merchantSignupSchema, signupSchema } from "./schemas";
 
 const valid = { fullName: "Nimal Perera", email: "nimal@example.lk", phone: "0771234567", password: "password1" };
 
@@ -53,5 +53,23 @@ describe("other schemas", () => {
   it("login only checks presence and email shape", () => {
     expect(loginSchema.safeParse({ email: "a@b.lk", password: "x" }).success).toBe(true);
     expect(errorFields(loginSchema.safeParse({ email: "", password: "" }))).toEqual(["email", "password"]);
+  });
+});
+
+describe("create credential schema (mirrors CredentialDtos.CreateCredentialRequest)", () => {
+  it.each(["API_KEY", "CLIENT"])("accepts type %s", (type) => {
+    expect(createCredentialSchema.safeParse({ type, name: "Shop backend" }).success).toBe(true);
+  });
+
+  it("trims the name", () => {
+    expect(createCredentialSchema.parse({ type: "API_KEY", name: "  Shop backend  " }).name).toBe("Shop backend");
+  });
+
+  it.each(["", "   ", "x".repeat(81)])("rejects name %j", (name) => {
+    expect(errorFields(createCredentialSchema.safeParse({ type: "API_KEY", name }))).toEqual(["name"]);
+  });
+
+  it("rejects an unknown type", () => {
+    expect(errorFields(createCredentialSchema.safeParse({ type: "PASSWORD", name: "Shop" }))).toEqual(["type"]);
   });
 });

@@ -43,9 +43,18 @@ swiftdrop:
   seed:
     enabled: ${SEED_DEMO_DATA:false}
     password: ${SEED_PASSWORD:}
+    # Raw key the Demo Store sends as X-API-Key; seeded (as a hash) for merchant@swiftdrop.test. Optional.
+    demo-store-api-key: ${DEMO_STORE_API_KEY:}
+  # Shared transactional outbox from common-lib (relay polls auth.outbox_events; merchant.approved)
+  outbox:
+    enabled: true
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  health:
+    # The outbox survives a RabbitMQ outage, so a broker problem must not make auth (login) report DOWN.
+    rabbit:
+      enabled: false

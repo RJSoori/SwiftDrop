@@ -14,6 +14,9 @@
     <artifactId>dispatch-service</artifactId>
     <description>Dispatcher queue and courier workload service</description>
 
+    <properties>
+        <coverage.minimum>0.70</coverage.minimum>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -28,15 +31,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
-        <!-- Stores courier proof photos in MinIO (LiveCourierConfiguration) -->
-        <dependency>
-            <groupId>io.minio</groupId>
-            <artifactId>minio</artifactId>
-            <version>8.6.0</version>
-        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -61,6 +63,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.13.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "swiftdrop-static-v1";
+const CACHE_NAME = "swiftdrop-static-v2";
 const PRECACHE_URLS = ["/icons/courier-192.svg", "/icons/courier-512.svg"];
 
 self.addEventListener("install", (event) => {
@@ -35,15 +35,21 @@ self.addEventListener("fetch", (event) => {
   if (!isStaticAsset) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    (async () => {
+      const cached = await caches.match(request);
       if (cached) return cached;
 
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          void caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
-        }
-        return response;
-      });
-    }),
+      const response = await fetch(request);
+      if (response.ok) {
+        const responseForCache = response.clone();
+        const cacheWrite = caches.open(CACHE_NAME).then((cache) => cache.put(request, responseForCache));
+        event.waitUntil(
+          cacheWrite.catch((error) => {
+            console.error("Could not cache a static asset.", error);
+          }),
+        );
+      }
+      return response;
+    })(),
   );
 });

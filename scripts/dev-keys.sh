@@ -38,6 +38,9 @@ for key in POSTGRES_PASSWORD AUTH_DB_PASSWORD PARCEL_DB_PASSWORD DISPATCH_DB_PAS
            RABBITMQ_PASSWORD SEED_PASSWORD INTERNAL_TOKEN MINIO_ROOT_PASSWORD; do
   set_if_empty "$key" "$(rand)"
 done
+# Demo Store API key: auth-service seeds it for merchant@swiftdrop.test (stored as a hash) when SEED_DEMO_DATA=true.
+# A key pasted in by hand is kept, like every other value here.
+set_if_empty DEMO_STORE_API_KEY "sd_live_$(openssl rand -hex 24)"
 
 echo "Wrote $ENV_FILE"
 echo "Seed account password: $(grep '^SEED_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)"
