@@ -12,13 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.UUID;
 
 /**
@@ -36,7 +30,6 @@ public class RefreshTokenService {
     private final RefreshTokenRepository tokens;
     private final UserRepository users;
     private final AuthProperties props;
-    private final SecureRandom random = new SecureRandom();
 
     public RefreshTokenService(RefreshTokenRepository tokens, UserRepository users, AuthProperties props) {
         this.tokens = tokens;
@@ -79,19 +72,13 @@ public class RefreshTokenService {
     }
 
     private Created create(UUID userId, UUID familyId) {
-        byte[] bytes = new byte[32];
-        random.nextBytes(bytes);
-        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String raw = SecretTokens.random();
         RefreshToken saved = tokens.save(new RefreshToken(userId, hash(raw), familyId, Instant.now().plus(props.refreshTtl())));
         return new Created(raw, saved);
     }
 
     static String hash(String raw) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return SecretTokens.sha256(raw);
     }
 
     private static ResponseStatusException invalid() {
