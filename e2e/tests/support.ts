@@ -139,8 +139,23 @@ export function statusText(status: string): RegExp {
   return new RegExp(`^\\s*${status.replace(/_/g, " ")}\\s*$`, "i");
 }
 
+/** realtime-service builds tracking from events, a moment after booking; nobody scans a label that fast. */
+export async function waitUntilTrackable(trackingNo: string) {
+  const ctx = await request.newContext({ baseURL: WEB_URL });
+  await expect
+    // Once a second: the gateway allows 60 tracking requests a minute per IP, and the live stream needs some too.
+    .poll(async () => (await ctx.get(`/api/v1/tracking/${trackingNo}`)).status(), {
+      timeout: 15_000,
+      intervals: [1_000],
+      message: `${trackingNo} trackable`,
+    })
+    .toBe(200);
+  await ctx.dispose();
+}
+
 /** The public tracking page for a parcel (what the label QR opens). */
 export async function openTracking(page: Page, trackingNo: string) {
+  await waitUntilTrackable(trackingNo);
   await page.goto(`/track/${trackingNo}`);
   await expect(page.getByRole("heading", { level: 1, name: trackingNo })).toBeVisible();
 }

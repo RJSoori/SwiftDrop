@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ACCOUNTS, Api, PASSWORD, PHONE, bookParcel } from "./support";
+import { ACCOUNTS, Api, PASSWORD, PHONE, bookParcel, openTracking } from "./support";
 
 // The tracking page and the courier app must work on a 360 px wide phone: nothing may force sideways scrolling.
 test.use(PHONE);
@@ -21,6 +21,7 @@ async function expectNoSidewaysScroll(page: Page) {
 test.describe("360 px phone layout", () => {
   test("tracking page", async ({ page }) => {
     const parcel = await bookParcel(await Api.as(ACCOUNTS.customer));
+    await openTracking(page, parcel.trackingNo); // waits until realtime-service has it
     await page.goto("/");
     await expectNoSidewaysScroll(page);
 

@@ -105,11 +105,13 @@ async function main() {
       await retry(() => api(dispatcher, "POST", `/api/v1/dispatch/parcels/${parcel.id}/assign`, { courierId: couriers[p.courier].id }));
     }
     for (const status of p.path) {
-      parcel = await api(dispatcher, "PATCH", `/api/v1/parcels/${parcel.id}/status`, {
+      // Retried: parcel-service applies the parcel.assigned event at the same moment, and two updates to one
+      // parcel within milliseconds can collide on its optimistic lock.
+      parcel = await retry(() => api(dispatcher, "PATCH", `/api/v1/parcels/${parcel.id}/status`, {
         status,
         note: NOTES[status],
         failureReason: status === "FAILED" ? "Recipient not at home" : null,
-      });
+      }));
     }
     rows.push({ tracking: parcel.trackingNo, status: parcel.currentStatus, route: `${from.city} -> ${to.city}`, courier: p.courier ?? "-" });
   }

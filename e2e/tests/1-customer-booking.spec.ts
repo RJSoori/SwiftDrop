@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ACCOUNTS, PHONE, loginUi, statusText } from "./support";
+import { ACCOUNTS, PHONE, loginUi, statusText, waitUntilTrackable } from "./support";
 
 // Scenario 1: the customer books 2 kg to Kandy, sees the fee, gets a tracking number, and opens the tracking
 // page on a phone through the label QR. The demo signs in with Google; a test cannot drive a real Google
@@ -41,6 +41,7 @@ test.describe("Scenario 1: customer books a parcel and tracks it", () => {
     // The QR encodes <web>/?track=<trackingNo>; a fresh context is a phone that has never logged in.
     const phone = await browser.newContext(PHONE);
     const page = await phone.newPage();
+    await waitUntilTrackable(trackingNo);
     await page.goto(`/?track=${trackingNo}`);
 
     await expect(page).toHaveURL(new RegExp(`/track/${trackingNo}$`));
