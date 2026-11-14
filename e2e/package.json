@@ -1,0 +1,13 @@
+{
+  "name": "swiftdrop-e2e",
+  "private": true,
+  "description": "Playwright tests for the four SwiftDrop demo scenarios, run against the docker compose stack",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22"
+  }
+}

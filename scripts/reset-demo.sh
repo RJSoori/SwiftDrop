@@ -38,8 +38,12 @@ echo "==> Starting the stack (waits for health checks)"
   exit 1
 }
 
-echo "==> Seeding demo parcels"
+echo "==> Seeding demo data"
 node "$ROOT/scripts/seed-demo.mjs"
+
+# The seed wrote a fresh merchant API key and webhook secret to .env; recreate the Demo Store to load them.
+echo "==> Restarting the Demo Store with the new API key"
+"${COMPOSE[@]}" up -d --wait demo-store
 
 echo
 echo "Done. Web app: http://localhost:3000  (log in as customer@, dispatcher@, courier1@, merchant@ or admin@swiftdrop.test"
