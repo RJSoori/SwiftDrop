@@ -29,9 +29,9 @@ class ChatServiceTest {
         when(sessions.save(any())).thenAnswer(i -> i.getArgument(0));
         ObjectMapper json = new ObjectMapper();
         // Unreachable URLs: any call to the model or the gateway would fail the test.
-        LlmClient llm = new LlmClient(RestClient.builder(), json, "http://127.0.0.1:1", "", "claude-opus-5-5");
+        LlmClient llm = new GeminiClient(RestClient.builder(), json, "http://127.0.0.1:1", "", GeminiClient.DEFAULT_MODEL);
         ParcelTools tools = new ParcelTools(RestClient.builder(), "http://127.0.0.1:1", json);
-        ChatService service = new ChatService(sessions, messages, llm, tools, json);
+        ChatService service = new ChatService(sessions, messages, llm, tools);
 
         ChatService.Reply reply = service.chat(UUID.randomUUID(), "customer-token", null, "Where is SD-1001?");
 
