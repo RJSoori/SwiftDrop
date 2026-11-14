@@ -112,7 +112,7 @@ public class WebhookService {
     private String generateSecret() {
         byte[] randomBytes = new byte[24];
         new SecureRandom().nextBytes(randomBytes);
-        return "whsec_" + HexFormat.of().formatHex(randomBytes);
+        return "sdwh_" + HexFormat.of().formatHex(randomBytes);
     }
 
     // --- M5 Methods (used by WebhookController and M5 tests) ---

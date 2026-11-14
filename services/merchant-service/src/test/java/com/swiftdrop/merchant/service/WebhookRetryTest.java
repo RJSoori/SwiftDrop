@@ -175,7 +175,7 @@ public class WebhookRetryTest {
         String deadUrl = "http://127.0.0.1:59999/dead-endpoint";
 
         SecretEncryptor enc = new SecretEncryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
-        endpointRepository.save(new WebhookEndpoint(merchantId, deadUrl, enc.encrypt("whsec_test123")));
+        endpointRepository.save(new WebhookEndpoint(merchantId, deadUrl, enc.encrypt("test-signing-secret")));
 
         // Attempt 1: fails, schedules retry #2
         webhookService.dispatchWebhook(merchantId, eventId, "{}", 1);
@@ -203,7 +203,7 @@ public class WebhookRetryTest {
         deliveryRepository.save(deadDelivery);
 
         SecretEncryptor enc = new SecretEncryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
-        endpointRepository.save(new WebhookEndpoint(merchantId, "http://127.0.0.1:59999/replay-test", enc.encrypt("whsec_test123")));
+        endpointRepository.save(new WebhookEndpoint(merchantId, "http://127.0.0.1:59999/replay-test", enc.encrypt("test-signing-secret")));
 
         var response = webhookService.replayDelivery(merchantId, deliveryId);
 
