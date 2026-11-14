@@ -58,6 +58,12 @@ describe("courier delivery details response schema", () => {
     expect(deliveryDetailsSchema.parse(validDetails)).toEqual(validDetails);
   });
 
+  it("accepts optional drop-off address fields", () => {
+    const details = { ...validDetails, dropoffAddress: "12 Example Road", dropoffCity: "Colombo" };
+    expect(deliveryDetailsSchema.parse(details)).toEqual(details);
+    expect(deliveryDetailsSchema.parse(validDetails)).toEqual(validDetails);
+  });
+
   it("rejects malformed or incomplete parcel detail responses", () => {
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, parcelId: "not-a-uuid" }).success).toBe(false);
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, status: "PENDING" }).success).toBe(false);

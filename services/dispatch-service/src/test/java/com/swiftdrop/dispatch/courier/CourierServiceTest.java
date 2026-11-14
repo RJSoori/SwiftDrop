@@ -324,11 +324,13 @@ class CourierServiceTest {
     void returnsAssignedParcelDetailsWithContactData() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
                 .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
-        when(parcelClient.getContact(parcelId)).thenReturn(new ParcelContact("Recipient", "Recipient phone"));
+        when(parcelClient.getContact(parcelId))
+                .thenReturn(new ParcelContact("Recipient", "Recipient phone", "12 Example Road", "Colombo"));
 
         DeliveryDetails details = courierService.deliveryDetails(parcelId);
 
-        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Recipient phone"), details);
+        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Recipient phone",
+                "12 Example Road", "Colombo"), details);
     }
 
     @Test
@@ -352,6 +354,22 @@ class CourierServiceTest {
 
         DeliveryStatus result = courierService.updateStatus(parcelId,
                 new StatusRequest(DeliveryStatus.OUT_FOR_DELIVERY, "On the way"));
+
+        assertEquals(DeliveryStatus.OUT_FOR_DELIVERY, result);
+        verify(otpRepository).saveAndFlush(any(DeliveryOtp.class));
+        verify(notificationClient).sendOtp(eq(parcelId), any());
+    }
+
+    @Test
+    void keepsOutForDeliveryStatusWhenOtpNotificationFails() {
+        when(assignmentLookup.findAssignment(courierId, parcelId))
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+        when(parcelClient.updateStatus(parcelId, DeliveryStatus.OUT_FOR_DELIVERY, courierId, null, null, null))
+                .thenReturn(DeliveryStatus.OUT_FOR_DELIVERY);
+        when(notificationClient.sendOtp(eq(parcelId), any())).thenThrow(new NotificationClientException());
+
+        DeliveryStatus result = courierService.updateStatus(parcelId,
+                new StatusRequest(DeliveryStatus.OUT_FOR_DELIVERY, null));
 
         assertEquals(DeliveryStatus.OUT_FOR_DELIVERY, result);
         verify(otpRepository).saveAndFlush(any(DeliveryOtp.class));
