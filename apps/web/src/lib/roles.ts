@@ -49,10 +49,15 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: "/merchant/webhooks", label: "Webhooks" },
   ],
   COURIER: [{ href: "/courier", label: "Today's deliveries" }],
-  DISPATCHER: [{ href: "/dispatcher", label: "Overview" }],
+  DISPATCHER: [
+    { href: "/dispatcher", label: "Overview" },
+    { href: "/dispatcher/reports", label: "Reports" },
+  ],
   ADMIN: [
     { href: "/admin", label: "Overview" },
     { href: "/admin/merchants", label: "Merchant applications" },
     { href: "/admin/users", label: "Staff accounts" },
+    { href: "/admin/zones", label: "Zones & pricing" },
+    { href: "/admin/reports", label: "Reports" },
   ],
 };
