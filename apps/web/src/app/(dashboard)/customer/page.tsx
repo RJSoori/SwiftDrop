@@ -18,8 +18,10 @@ import {
   type ParcelStatus,
   type QuoteRequest,
   type QuoteResponse,
+  type TrackingView,
 } from "@/lib/api";
 import { useMe } from "@/lib/session";
+import { useLiveUpdates } from "@/lib/realtime";
 import {
   Package,
   Truck,
@@ -55,6 +57,52 @@ function formatStatus(status: ParcelStatus): string {
   return status.replace(/_/g, " ");
 }
 
+function CustomerParcelRow({ parcel, tracking }: { parcel: ParcelResponse; tracking?: TrackingView }) {
+  const currentStatus = tracking?.currentStatus ?? parcel.currentStatus;
+
+  return (
+    <TableRow>
+      <TableCell className="font-mono text-xs font-semibold text-foreground">
+        <Link href={`/track/${encodeURIComponent(parcel.trackingNo)}`} className="text-brand hover:underline">
+          {parcel.trackingNo}
+        </Link>
+      </TableCell>
+      <TableCell>
+        <Badge variant={getStatusBadgeVariant(currentStatus)} className="text-[10px] uppercase font-semibold">
+          {formatStatus(currentStatus)}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="truncate max-w-[100px] text-foreground font-medium">
+            {parcel.pickupCity || parcel.pickupAddress}
+          </span>
+          <ArrowRight className="h-3 w-3 shrink-0" />
+          <span className="truncate max-w-[100px]">
+            {parcel.dropoffCity || parcel.dropoffAddress}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-xs font-semibold text-right tabular">
+        {Number(parcel.feeLkr).toFixed(2)}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Link href={`/track/${encodeURIComponent(parcel.trackingNo)}`} aria-label={`Track ${parcel.trackingNo}`}>
+            <ExternalLink className="h-4 w-4 text-brand" />
+          </Link>
+          <a href={`/api/v1/parcels/${parcel.id}/receipt.pdf`} aria-label={`Download receipt for ${parcel.trackingNo}`}>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </a>
+          <a href={`/api/v1/parcels/${parcel.id}/label.pdf`} aria-label={`Download label for ${parcel.trackingNo}`}>
+            <QrCode className="h-4 w-4 text-muted-foreground" />
+          </a>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function CustomerDashboard() {
   const me = useMe();
   const queryClient = useQueryClient();
@@ -84,6 +132,8 @@ export default function CustomerDashboard() {
     queryKey: ["my-parcels"],
     queryFn: () => api<ParcelResponse[]>("/parcels/mine"),
   });
+  const parcelTopics = parcelsQuery.data?.map((parcel) => `/topic/parcels/${parcel.id}`) ?? [];
+  const liveUpdates = useLiveUpdates<TrackingView>(parcelTopics);
 
   const quoteMutation = useMutation({
     mutationFn: (req: QuoteRequest) =>
@@ -95,8 +145,8 @@ export default function CustomerDashboard() {
       setQuote(data);
       setFormError(null);
     },
-    onError: () => {
-      setFormError("Could not calculate delivery quote. Please check the values entered.");
+    onError: (err) => {
+      setFormError(err instanceof ApiError ? err.message : "Could not calculate delivery quote. Please check the values entered.");
     },
   });
 
@@ -128,12 +178,20 @@ export default function CustomerDashboard() {
       return;
     }
 
+    // The cities' coordinates select the delivery zones and their pricing rule (same as at booking).
+    const pickupGeo = SRI_LANKA_CITIES.find((c) => c.name === pickupCity);
+    const dropoffGeo = SRI_LANKA_CITIES.find((c) => c.name === dropoffCity);
     quoteMutation.mutate({
       weightKg: w,
       lengthCm: isNaN(l) ? 20 : l,
       widthCm: isNaN(wi) ? 15 : wi,
       heightCm: isNaN(h) ? 10 : h,
       strategy: serviceType === "EXPRESS" ? "EXPRESS" : strategy,
+      pickupLat: pickupGeo?.lat,
+      pickupLng: pickupGeo?.lng,
+      dropoffLat: dropoffGeo?.lat,
+      dropoffLng: dropoffGeo?.lng,
+      size,
     });
   }
 
@@ -227,8 +285,8 @@ export default function CustomerDashboard() {
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
                       typeof window !== "undefined"
-                        ? `${window.location.origin}/?track=${bookingSuccess.trackingNo}`
-                        : `https://swiftdrop.lk/?track=${bookingSuccess.trackingNo}`
+                        ? `${window.location.origin}/track/${encodeURIComponent(bookingSuccess.trackingNo)}`
+                        : `https://swiftdrop.lk/track/${encodeURIComponent(bookingSuccess.trackingNo)}`
                     )}`}
                     alt={`Tracking QR Code for ${bookingSuccess.trackingNo}`}
                     width={150}
@@ -243,7 +301,7 @@ export default function CustomerDashboard() {
                 {/* Quick Navigation / Action Links */}
                 <div className="space-y-2 pt-1">
                   <Link
-                    href={`/?track=${bookingSuccess.trackingNo}`}
+                    href={`/track/${encodeURIComponent(bookingSuccess.trackingNo)}`}
                     className="flex items-center justify-center gap-2 w-full rounded-lg bg-brand px-4 py-2.5 text-xs font-semibold text-brand-foreground shadow hover:bg-brand/90 transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -251,13 +309,21 @@ export default function CustomerDashboard() {
                   </Link>
 
                   <a
-                    href={`/api/v1/parcels/${bookingSuccess.id}/receipt`}
+                    href={`/api/v1/parcels/${bookingSuccess.id}/receipt.pdf`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-center gap-2 w-full rounded-lg border border-input bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                   >
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    Download Receipt PDF (M7)
+                    Download Receipt PDF
+                  </a>
+
+                  <a
+                    href={`/api/v1/parcels/${bookingSuccess.id}/label.pdf`}
+                    className="flex items-center justify-center gap-2 w-full rounded-lg border border-input bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  >
+                    <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                    Download Parcel Label PDF
                   </a>
 
                   <Button
@@ -477,6 +543,12 @@ export default function CustomerDashboard() {
                         <span className="text-muted-foreground">Chargeable Weight:</span>
                         <span className="font-semibold">{quote.chargeableWeightKg} kg</span>
                       </div>
+                      {quote.dropoffZoneName && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Pricing Zone:</span>
+                          <span className="font-medium">{quote.dropoffZoneName}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between border-t pt-1.5 font-bold text-sm text-foreground">
                         <span>Estimated Fee:</span>
                         <span className="text-brand">LKR {Number(quote.feeLkr).toFixed(2)}</span>
@@ -542,36 +614,16 @@ export default function CustomerDashboard() {
                       <TableHead className="text-xs">Status</TableHead>
                       <TableHead className="text-xs">Route</TableHead>
                       <TableHead className="text-xs text-right">Fee (LKR)</TableHead>
+                      <TableHead className="text-xs text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parcelsQuery.data.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs font-semibold text-foreground">
-                          <Link href={`/?track=${p.trackingNo}`} className="hover:underline text-brand">
-                            {p.trackingNo}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(p.currentStatus)} className="text-[10px] uppercase font-semibold">
-                            {formatStatus(p.currentStatus)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <span className="truncate max-w-[100px] text-foreground font-medium">
-                              {p.pickupCity || p.pickupAddress}
-                            </span>
-                            <ArrowRight className="h-3 w-3 shrink-0" />
-                            <span className="truncate max-w-[100px]">
-                              {p.dropoffCity || p.dropoffAddress}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold text-right tabular">
-                          {Number(p.feeLkr).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
+                    {parcelsQuery.data.map((parcel) => (
+                      <CustomerParcelRow
+                        key={parcel.id}
+                        parcel={parcel}
+                        tracking={liveUpdates.data[`/topic/parcels/${parcel.id}`]}
+                      />
                     ))}
                   </TableBody>
                 </Table>
