@@ -102,12 +102,12 @@ Each line of the assignment brief, and where it is in the system.
 | Frontend in React, Angular or Vue | Next.js 15 (React) with TypeScript and Tailwind, responsive down to 360 px |
 | Backend framework | Java 21, Spring Boot 3.5 microservices behind Spring Cloud Gateway |
 | Versioned, validated APIs with central error handling | Every path is under `/api/v1`. Errors come from one `GlobalExceptionHandler` in common-lib as RFC 7807 `application/problem+json` |
-| Broker, notification consumer, webhooks with retry | See the system requirements above, and the webhook retry flow in [docs/phase2-implementation.md](docs/phase2-implementation.md) |
+| Broker, notification consumer, webhooks with retry | See the system requirements above. Webhooks are retried four times through timed RabbitMQ queues, then dead-lettered |
 | No hard-coded secrets | All settings come from `infra/compose/.env` (see below). `dev-keys.sh` generates the secrets |
 | Dockerised, docker-compose | `services/Dockerfile` builds every Spring service; `apps/web` and `apps/demo-store` have their own. `infra/compose/docker-compose.yml` runs everything |
 | Unit and integration tests, an event-flow test | 456 backend tests, including Testcontainers tests with real Postgres, RabbitMQ and Redis. Event-flow tests: `ReportingFlowIntegrationTest`, `TrackingEventFlowTest`, `MerchantIntegrationTest` |
 | Authorisation tests (courier against courier) | `CourierControllerTest.courierNotAssignedToParcelGetsForbiddenForReadAndUpdate`, plus `ParcelControllerTest`, `AuthorizationTest`, `GatewaySecurityTest` |
-| Measurable coverage and test results | JaCoCo with a 70% line gate in CI (80.8% line coverage overall). Results in [docs/test-report.md](docs/test-report.md) |
+| Measurable coverage and test results | JaCoCo with a 70% line gate in CI (80.8% line coverage overall). Results in the test report submitted with the project |
 | Bonus: AI delivery assistant with MCP | Done. Chat panel for customers on the Gemini API with three tools, and the same tools as an MCP server (see below) |
 | Bonus: Kubernetes | Not built. See known limitations |
 
@@ -236,7 +236,7 @@ cd ../demo-store && npm test  # Demo Store signature checks
 - Each module needs at least 70% line coverage or the build fails. `*Application`, `*Config`, `*Configuration`, `Stub*` and `dto` classes don't count. merchant-service still has a lower minimum of 60% in its own pom.
 - The combined coverage report is at `services/coverage/target/site/jacoco-aggregate/index.html`, and each module's own report is at `services/<module>/target/site/jacoco/index.html`.
 
-The latest numbers are in [docs/test-report.md](docs/test-report.md).
+The latest numbers are in the test report submitted with the project.
 
 ### End-to-end tests
 
@@ -254,8 +254,6 @@ npx playwright show-report   # HTML report in e2e/playwright-report
 GitHub Actions runs the Maven build with the coverage gate, the web checks, a Docker image build with a Trivy scan and the Playwright suite on every PR into `dev` or `main`. A failing E2E run fails the pipeline. The coverage, Trivy and Playwright reports are attached to each run.
 
 ## The four demo scenarios
-
-The full script, with who speaks when, is in [docs/demo-script.md](docs/demo-script.md).
 
 1. **Customer booking.** Sign in with Google (or log in as `customer@swiftdrop.test`), get a quote for 2 kg from Colombo to Kandy, book it, download the label and open the tracking page from its QR code on a phone, without logging in.
 2. **Merchant order.** Place an order in the Demo Store (http://localhost:4000). It reaches SwiftDrop through the merchant API with an API key and an Idempotency-Key, and shows on the `merchant@swiftdrop.test` dashboard. When the parcel moves, a signed webhook reaches the Demo Store.
@@ -279,7 +277,6 @@ apps/demo-store/ Demo Store
 e2e/             Playwright tests for the demo scenarios
 infra/compose/   docker-compose.yml, .env.example and the database init script
 scripts/         dev-keys.sh, seed-demo.mjs, reset-demo.sh
-docs/            reports, design notes and diagrams
 ```
 
 ## Submission
@@ -287,17 +284,6 @@ docs/            reports, design notes and diagrams
 | The brief asks for | Where it is |
 |---|---|
 | Source code with a README and setup steps | This repository (`main`, tag `v1.0`) and this file |
-| Design documentation (PDF) | The Phase 1 design report PDF, submitted separately, with [docs/phase2-implementation.md](docs/phase2-implementation.md) attached as the Phase 2 addendum |
-| Test reports and coverage summary | [docs/test-report.md](docs/test-report.md); the full JaCoCo and Playwright HTML reports are attached to each GitHub Actions run |
-| Contribution sheet | [docs/contribution-sheet.md](docs/contribution-sheet.md) |
-
-## Documents
-
-- [docs/phase2-implementation.md](docs/phase2-implementation.md): the system as built (architecture, data, events, API, security, patterns)
-- [docs/test-report.md](docs/test-report.md): test and coverage results
-- [docs/demo-script.md](docs/demo-script.md): the 15-minute demo
-- [docs/contribution-sheet.md](docs/contribution-sheet.md): who did what
-- [docs/merchant-integration.md](docs/merchant-integration.md): merchant API, webhooks and the Demo Store
-- [docs/member-8-zones-pricing-reports.md](docs/member-8-zones-pricing-reports.md): delivery zones, pricing and reports
-- [docs/security.md](docs/security.md): identity, merchant credentials and admin controls
-- [docs/testing.md](docs/testing.md): how to use the shared test base
+| Design documentation (PDF) | Submitted separately |
+| Test reports and coverage summary | Submitted separately. The full JaCoCo and Playwright HTML reports are also attached to each GitHub Actions run |
+| Contribution sheet | Submitted separately |
