@@ -4,6 +4,7 @@ import com.swiftdrop.common.security.CommonSecurityAutoConfiguration;
 import com.swiftdrop.common.web.CommonWebAutoConfiguration;
 import com.swiftdrop.realtime.config.TrackingSecurityConfiguration;
 import com.swiftdrop.realtime.service.TrackingService;
+import com.swiftdrop.realtime.service.TrackingSseRegistry;
 import com.swiftdrop.realtime.service.TrackingTimelineEntry;
 import com.swiftdrop.realtime.service.TrackingView;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(TrackingController.class)
+@WebMvcTest({TrackingController.class, PingController.class})
 @Import({TrackingSecurityConfiguration.class})
 @ImportAutoConfiguration({CommonSecurityAutoConfiguration.class, CommonWebAutoConfiguration.class})
 class TrackingControllerTest {
@@ -37,11 +37,13 @@ class TrackingControllerTest {
     @MockitoBean
     TrackingService trackingService;
 
+    @MockitoBean
+    TrackingSseRegistry sseRegistry;
+
     @Test
     void trackingDetailsArePublicAndContainOnlyTrackingData() throws Exception {
-        UUID parcelId = UUID.randomUUID();
         when(trackingService.getTracking("SD-000001")).thenReturn(new TrackingView(
-                "SD-000001", parcelId, "IN_TRANSIT", "Colombo", "Kandy",
+                "SD-000001", "IN_TRANSIT", "Colombo", "Kandy",
                 List.of(new TrackingTimelineEntry("PICKED_UP", Instant.parse("2026-11-13T10:00:00Z"))),
                 Instant.parse("2026-11-13T10:00:00Z")));
 
@@ -49,7 +51,6 @@ class TrackingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.trackingNo").value("SD-000001"))
-                .andExpect(jsonPath("$.parcelId").value(parcelId.toString()))
                 .andExpect(jsonPath("$.currentStatus").value("IN_TRANSIT"))
                 .andExpect(jsonPath("$.pickupCity").value("Colombo"))
                 .andExpect(jsonPath("$.dropoffCity").value("Kandy"))
@@ -58,7 +59,8 @@ class TrackingControllerTest {
                 .andExpect(jsonPath("$.name").doesNotExist())
                 .andExpect(jsonPath("$.phone").doesNotExist())
                 .andExpect(jsonPath("$.email").doesNotExist())
-                .andExpect(jsonPath("$.address").doesNotExist());
+                .andExpect(jsonPath("$.address").doesNotExist())
+                .andExpect(jsonPath("$.parcelId").doesNotExist());
     }
 
     @Test
@@ -68,6 +70,12 @@ class TrackingControllerTest {
 
         mvc.perform(get("/api/v1/tracking/unknown"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void pingRemainsAuthenticated() throws Exception {
+        mvc.perform(get("/api/v1/tracking/ping"))
+                .andExpect(status().isUnauthorized());
     }
 
 }
