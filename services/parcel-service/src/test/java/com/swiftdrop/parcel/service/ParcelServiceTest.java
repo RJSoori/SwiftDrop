@@ -174,7 +174,7 @@ class ParcelServiceTest {
         existingParcel.setCurrentStatus(ParcelStatus.CREATED);
 
         when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(existingParcel));
-        when(parcelRepository.saveAndFlush(any(Parcel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(parcelRepository.save(any(Parcel.class))).thenAnswer(inv -> inv.getArgument(0));
 
         InternalUpdateStatusRequest req = new InternalUpdateStatusRequest(
                 ParcelStatus.PICKED_UP, courierId, "Parcel collected from sender", null, null, null
@@ -228,6 +228,8 @@ class ParcelServiceTest {
         parcel.setId(parcelId);
         parcel.setRecipientName("Kasun Perera");
         parcel.setRecipientPhone("+94771234567");
+        parcel.setDropoffAddress("45 Main Street");
+        parcel.setDropoffCity("Galle");
 
         when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(parcel));
 
@@ -235,6 +237,26 @@ class ParcelServiceTest {
 
         assertThat(contact.recipientName()).isEqualTo("Kasun Perera");
         assertThat(contact.recipientPhone()).isEqualTo("+94771234567");
+    }
+
+    @Test
+    @DisplayName("getRecipientContact includes the parcel's drop-off address and city")
+    void getRecipientContact_includesDropoffDetails() {
+        UUID parcelId = UUID.randomUUID();
+        Parcel parcel = new Parcel(
+                "SD-20261108-TEST05", UUID.randomUUID(), new BigDecimal("1.0"),
+                "SMALL", new BigDecimal("350.00"), "Colombo", "Kandy"
+        );
+        parcel.setId(parcelId);
+        parcel.setDropoffAddress("45 Main Street");
+        parcel.setDropoffCity("Galle");
+
+        when(parcelRepository.findById(parcelId)).thenReturn(Optional.of(parcel));
+
+        RecipientContactResponse contact = parcelService.getRecipientContact(parcelId);
+
+        assertThat(contact.dropoffAddress()).isEqualTo("45 Main Street");
+        assertThat(contact.dropoffCity()).isEqualTo("Galle");
     }
 
     @Test

@@ -1,11 +1,10 @@
 package com.swiftdrop.dispatch.courier;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.swiftdrop.dispatch.courier.CourierModels.NotificationReceipt;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -38,23 +37,31 @@ class HttpNotificationClientTest {
     }
 
     @Test
-    void sendsTheOtpToNotificationServiceWithTheInternalToken() {
+    void postsOtpWithInternalTokenAndExpectedRequestBody() {
         UUID parcelId = UUID.randomUUID();
-        wireMock.stubFor(post(urlEqualTo("/internal/v1/notifications/otp")).willReturn(aResponse().withStatus(202)));
+        wireMock.stubFor(post(urlEqualTo("/internal/v1/notifications/otp"))
+                .willReturn(aResponse().withStatus(202)));
 
-        assertNotNull(client.sendOtp(parcelId, "4821"));
+        NotificationReceipt receipt = client.sendOtp(parcelId, "0123");
 
+        assertNotNull(receipt.id());
         wireMock.verify(postRequestedFor(urlEqualTo("/internal/v1/notifications/otp"))
                 .withHeader("X-Internal-Token", equalTo("test-internal-token"))
-                .withRequestBody(equalToJson("{\"parcelId\":\"" + parcelId + "\",\"code\":\"4821\"}")));
+                .withRequestBody(equalToJson("""
+                        {
+                          "parcelId": "%s",
+                          "code": "0123"
+                        }
+                        """.formatted(parcelId))));
     }
 
     @Test
-    void aFailedCallBecomesBadGateway() {
-        wireMock.stubFor(post(urlEqualTo("/internal/v1/notifications/otp")).willReturn(aResponse().withStatus(500)));
+    void returnsSanitizedErrorWhenNotificationServiceIsDown() {
+        wireMock.stop();
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> client.sendOtp(UUID.randomUUID(), "4821"));
-        assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
+        NotificationClientException error = assertThrows(NotificationClientException.class,
+                () -> client.sendOtp(UUID.randomUUID(), "9876"));
+
+        assertEquals("Notification service request failed", error.getMessage());
     }
 }
