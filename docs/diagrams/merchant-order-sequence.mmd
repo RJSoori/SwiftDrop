@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    actor Merchant as Merchant / Demo Store
+    participant Gateway as API Gateway
+    participant MS as Merchant Service
+    participant CacheDB as Redis / PostgreSQL
+    participant PS as Parcel Service (Internal API)
+    participant MQ as RabbitMQ
+    participant WH as Webhook Dispatcher
+    actor Receiver as Webhook Receiver
+
+    %% Order Placement Flow
+    rect rgb(240, 248, 255)
+    Note over Merchant, PS: 1. Merchant Order Placement & Idempotency
+    Merchant->>Gateway: POST /api/v1/merchant/orders (Idempotency-Key)
+    Gateway->>MS: Forward Request (merchantId in Context)
+    MS->>CacheDB: Check Idempotency Key
+    alt Duplicate Request
+        CacheDB-->>MS: Cached Response Found
+        MS-->>Merchant: 200 OK (Cached Order Details)
+    else First Time Request
+        MS->>CacheDB: Save Idempotency Key (IN_PROGRESS)
+        MS->>PS: POST /internal/v1/parcels (X-Internal-Token)
+        PS-->>MS: 201 Created (Tracking Number)
+        MS->>CacheDB: Save MerchantOrder (order_id, tracking_no, status)
+        MS->>CacheDB: Update Idempotency Key (COMPLETED)
+        MS-->>Merchant: 201 Created (Order Response)
+    end
+    end
+
+    %% Webhook Event Dispatch Flow
+    rect rgb(255, 250, 240)
+    Note over PS, Receiver: 2. Status Changed Event & Webhook Dispatch
+    PS->>MQ: Publish parcel.status.changed
+    MQ->>WH: Consume from webhook.q
+    WH->>CacheDB: Fetch Merchant Webhook Endpoint
+    WH->>WH: Decrypt Secret (AES-256-GCM) & Compute HMAC-SHA256 Signature
+    WH->>Receiver: POST Webhook URL (Header: X-SwiftDrop-Signature)
+    alt Success (2xx)
+        Receiver-->>WH: 200 OK
+        WH->>CacheDB: Record WebhookDelivery (SUCCESS)
+    else Failure (Timeout or Non-2xx)
+        Receiver-->>WH: 500 Error / Timeout
+        WH->>CacheDB: Record WebhookDelivery (FAILED)
+        WH->>MQ: Send to webhook.retry.q (TTL backoff)
+        Note over MQ, WH: Retries up to 3 times, then dead-letters to webhook.dlq.<br/>Can be manually replayed via API.
+    end
+    end
+

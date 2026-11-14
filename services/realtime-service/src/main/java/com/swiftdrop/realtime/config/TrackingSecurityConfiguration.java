@@ -26,7 +26,9 @@ public class TrackingSecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(InternalTokenAuthorizationManager.PATH_PATTERN).access(internalToken)
+                        .requestMatchers("/api/v1/tracking/ping").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/tracking/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tracking/*/stream").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
