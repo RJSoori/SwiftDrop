@@ -41,7 +41,7 @@ describe("courier delivery details response schema", () => {
     parcelId: "7b2f410c-68e9-4c65-99ba-08a60b7678f7",
     status: "OUT_FOR_DELIVERY",
     recipientName: "Nimal Perera",
-    dropOffAddress: "100 University Avenue",
+    recipientPhone: "Recipient phone",
   };
 
   it("accepts parcel detail responses", () => {
@@ -52,7 +52,7 @@ describe("courier delivery details response schema", () => {
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, parcelId: "not-a-uuid" }).success).toBe(false);
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, status: "PENDING" }).success).toBe(false);
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, recipientName: "" }).success).toBe(false);
-    expect(deliveryDetailsSchema.safeParse({ ...validDetails, dropOffAddress: null }).success).toBe(false);
+    expect(deliveryDetailsSchema.safeParse({ ...validDetails, recipientPhone: null }).success).toBe(false);
   });
 });
 

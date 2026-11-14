@@ -162,7 +162,7 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
     delivery.status === "FAILED"
       ? "bg-destructive/10 text-destructive"
       : delivery.status === "DELIVERED"
-        ? "bg-emerald-600/10 text-emerald-700 dark:text-emerald-300"
+        ? "bg-emerald-600/10 text-emerald-200"
         : "bg-accent text-accent-foreground";
 
   return (
@@ -171,7 +171,7 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       aria-label={`View parcel ${delivery.parcelId}, ${STATUS_LABELS[delivery.status]}`}
     >
-      <Card className="flex min-w-0 flex-col gap-3 border-2 p-4 shadow-sm transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="flex min-w-0 flex-col gap-3 p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
           <p className="mt-1 break-all font-semibold tabular">{delivery.parcelId}</p>
