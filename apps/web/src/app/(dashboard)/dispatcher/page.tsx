@@ -79,7 +79,7 @@ export default function DispatcherDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>{status ? "All parcels" : "Unassigned queue"}</CardTitle>
-            <CardDescription>Filter the local dispatch queue without calling parcel-service.</CardDescription>
+            <CardDescription>Filter parcels by status and courier, then assign them.</CardDescription>
             <div className="mt-3 grid justify-items-start gap-2">
               <select aria-label="Filter parcels by status" value={status} onChange={(event) => {
                 setStatus(event.target.value);

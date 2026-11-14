@@ -56,9 +56,10 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
   ],
   ADMIN: [
     { href: "/admin", label: "Overview" },
-    { href: "/admin/merchants", label: "Merchant applications" },
-    { href: "/admin/users", label: "Staff accounts" },
+    { href: "/admin/merchants", label: "Merchants" },
+    { href: "/admin/users", label: "Users" },
     { href: "/admin/zones", label: "Zones & pricing" },
     { href: "/admin/reports", label: "Reports" },
+    { href: "/admin/audit-log", label: "Audit log" },
   ],
 };
