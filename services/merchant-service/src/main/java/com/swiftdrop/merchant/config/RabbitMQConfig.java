@@ -19,23 +19,6 @@ public class RabbitMQConfig {
     public static final String WEBHOOK_RETRY_QUEUE = "webhook.retry.q";
     public static final String WEBHOOK_DLQ = "webhook.dlq";
 
-    @Bean
-    public TopicExchange parcelEventsExchange() {
-        return ExchangeBuilder.topicExchange(EventTopology.EXCHANGE).durable(true).build();
-    }
-
-    @Bean
-    public Queue webhookQueue() {
-        return QueueBuilder.durable(WEBHOOK_QUEUE).build();
-    }
-
-    @Bean
-    public Binding webhookQueueBinding(Queue webhookQueue, TopicExchange parcelEventsExchange) {
-        return BindingBuilder.bind(webhookQueue)
-                .to(parcelEventsExchange)
-                .with(EventTopology.PARCEL_STATUS_CHANGED);
-    }
-
     /**
      * Retry queue using RabbitMQ DLX dead-lettering back to webhook.q when per-message TTL expires.
      */

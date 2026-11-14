@@ -16,6 +16,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.repository.query.FluentQuery;
 
+import java.io.IOException;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -156,7 +159,12 @@ public class WebhookRetryTest {
                 rabbitTemplate,
                 objectMapper,
                 delays
-        );
+        ) {
+            @Override
+            HttpResponse<String> sendHttpRequest(HttpRequest request) throws Exception {
+                throw new IOException("Connection refused (instant test stub)");
+            }
+        };
     }
 
     @Test
