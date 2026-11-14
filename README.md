@@ -40,7 +40,7 @@ They all use the password in `SEED_PASSWORD` in `infra/compose/.env`.
 
 ## Optional settings
 
-Both go in `infra/compose/.env`. Restart the stack after changing them.
+Both go in `infra/compose/.env`. After changing them, run `docker compose -f infra/compose/docker-compose.yml up -d` to apply them.
 
 - Google login: create an OAuth client in Google Cloud Console with the redirect URI `http://localhost:3000/api/v1/auth/oauth2/callback/google`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - AI assistant: set `LLM_API_KEY` to a Gemini API key from Google AI Studio. Without it, the assistant gives a fixed reply.
