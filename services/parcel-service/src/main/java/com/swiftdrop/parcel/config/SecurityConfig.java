@@ -27,7 +27,6 @@ public class SecurityConfig {
     static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, "/api/v1/parcels/quote"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/quotes"),
-            PATHS.matcher(HttpMethod.GET, "/api/v1/parcels/track/**"),
             PATHS.matcher("/internal/**"),
             PATHS.matcher("/swagger-ui/**"),
             PATHS.matcher("/v3/api-docs/**"),
