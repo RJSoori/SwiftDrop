@@ -25,8 +25,9 @@ test.describe("360 px phone layout", () => {
     await expectNoSidewaysScroll(page);
 
     await page.getByPlaceholder(/SD-/).fill(parcel.trackingNo);
-    await page.getByRole("button", { name: /track/i }).click();
-    await expect(page.getByText(parcel.trackingNo, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Track parcel" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: parcel.trackingNo })).toBeVisible();
+    await expect(page.getByText("Parcel timeline")).toBeVisible();
     await expectNoSidewaysScroll(page);
   });
 

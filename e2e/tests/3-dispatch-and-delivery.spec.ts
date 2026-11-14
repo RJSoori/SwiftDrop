@@ -6,28 +6,26 @@ import {
   PHONE,
   PROOF_PHOTO,
   bookParcel,
+  courierSetStatus,
   loginUi,
   mailpitSearch,
   mailpitText,
+  openTracking,
   placeDemoStoreOrder,
+  statusText,
   type Parcel,
 } from "./support";
 
 // Scenario 3: the dispatcher assigns both parcels (the customer's and the Demo Store order); the courier
 // moves them through each status; the phone updates live; an email and SMS arrive; one is delivered with
 // photo and OTP. Each step is its own test, so the report shows exactly which link in the chain works.
-//
-// The courier's status, photo and OTP screens are not in dev yet (feat/m9-courier-screens), so the courier
-// steps call the courier API the app will use. Swap them for UI steps once those screens are merged.
 test.describe("Scenario 3: dispatch, live tracking and delivery with photo and OTP", () => {
   let customerParcel: Parcel;
   let merchantParcel: { trackingNo: string; parcelId: string };
-  let courier: Api;
 
   test.beforeAll(async () => {
     customerParcel = await bookParcel(await Api.as(ACCOUNTS.customer), "18 Lake Round, Kandy");
     merchantParcel = await placeDemoStoreOrder();
-    courier = await Api.as(ACCOUNTS.courier);
   });
 
   test("the dispatcher assigns both parcels to a courier", async ({ page }) => {
@@ -52,29 +50,26 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
     }
   });
 
-  test("both parcels appear in the courier's deliveries for today", async ({ page }) => {
+  test("both parcels appear in the courier app", async ({ page }) => {
     await loginUi(page, ACCOUNTS.courier);
     await expect(page).toHaveURL(/\/courier/);
-    const today = await courier.call<Array<{ parcelId: string }>>("GET", "/courier/deliveries/today");
-    const ids = today.map((d) => d.parcelId);
-    expect(ids).toContain(customerParcel.id);
-    expect(ids).toContain(merchantParcel.parcelId);
+    for (const parcelId of [customerParcel.id, merchantParcel.parcelId]) {
+      await expect(page.getByRole("button", { name: new RegExp(`View parcel ${parcelId}`) })).toBeVisible();
+    }
   });
 
-  test("the tracking page on the phone updates live as the courier moves the parcel", async ({ browser }) => {
+  test("the tracking page on the phone updates live as the courier moves the parcel", async ({ browser, page }) => {
     const phone = await browser.newContext(PHONE);
-    const page = await phone.newPage();
-    await page.goto(`/?track=${customerParcel.trackingNo}`);
-    await expect(page.getByText(customerParcel.trackingNo, { exact: true })).toBeVisible();
+    const tracking = await phone.newPage();
+    await openTracking(tracking, customerParcel.trackingNo);
 
-    // No reloads from here on: the page must update by itself.
-    for (const [toStatus, shown] of [
-      ["PICKED_UP", "PICKED UP"],
-      ["IN_TRANSIT", "IN TRANSIT"],
-      ["OUT_FOR_DELIVERY", "OUT FOR DELIVERY"],
-    ] as const) {
-      await courier.call("POST", `/courier/deliveries/${customerParcel.id}/status`, { toStatus, note: `E2E: ${toStatus}` });
-      await expect(page.getByText(shown).first(), `phone should show ${shown} without a reload`).toBeVisible({ timeout: 20_000 });
+    await loginUi(page, ACCOUNTS.courier);
+    // No reloads of the phone from here on: it must update by itself.
+    for (const status of ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"]) {
+      await courierSetStatus(page, customerParcel.id, status);
+      await expect(tracking.getByText(statusText(status)).first(), `phone should show ${status} without a reload`).toBeVisible({
+        timeout: 20_000,
+      });
     }
     await phone.close();
   });
@@ -89,19 +84,26 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
       .toBeGreaterThan(0);
   });
 
-  test("the courier delivers with a photo and the OTP", async ({ browser }) => {
+  test("the courier delivers with a photo and the OTP", async ({ page, browser }) => {
     const messages = await mailpitSearch(customerParcel.trackingNo);
     const texts = await Promise.all(messages.map((m) => mailpitText(m.ID)));
     const otp = texts.map((t) => t.match(/\b(\d{4})\b/)?.[1]).find(Boolean);
     expect(otp, "a 4-digit OTP in the notification").toBeTruthy();
 
-    const { proofId } = await courier.upload<{ proofId: string }>(`/courier/deliveries/${customerParcel.id}/proof`, "file", PROOF_PHOTO);
-    await courier.call("POST", `/courier/deliveries/${customerParcel.id}/deliver`, { otp, proofId, recipientName: "Kamal Perera" });
+    await loginUi(page, ACCOUNTS.courier);
+    await page.goto(`/courier/deliveries/${customerParcel.id}`);
+    await page.getByRole("button", { name: "Photo proof" }).click();
+    await page.getByLabel("Take a photo").setInputFiles(PROOF_PHOTO);
+    await page.getByRole("button", { name: "Upload photo" }).click();
+    await page.getByRole("button", { name: "Continue to OTP" }).click();
+    await page.getByLabel("4-digit OTP").fill(otp!);
+    await page.getByLabel("Recipient name").fill("Kamal Perera");
+    await page.getByRole("button", { name: "Confirm delivery" }).click();
 
     const phone = await browser.newContext(PHONE);
-    const page = await phone.newPage();
-    await page.goto(`/?track=${customerParcel.trackingNo}`);
-    await expect(page.getByText("DELIVERED").first()).toBeVisible();
+    const tracking = await phone.newPage();
+    await openTracking(tracking, customerParcel.trackingNo);
+    await expect(tracking.getByText(statusText("DELIVERED")).first()).toBeVisible();
     await phone.close();
   });
 });

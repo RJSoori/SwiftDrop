@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ACCOUNTS, PHONE, loginUi } from "./support";
+import { ACCOUNTS, PHONE, loginUi, statusText } from "./support";
 
 // Scenario 1: the customer books 2 kg to Kandy, sees the fee, gets a tracking number, and opens the tracking
 // page on a phone through the label QR. The demo signs in with Google; a test cannot drive a real Google
@@ -33,7 +33,7 @@ test.describe("Scenario 1: customer books a parcel and tracks it", () => {
     await expect(page.getByAltText(`Tracking QR Code for ${trackingNo}`)).toBeVisible();
 
     // The new parcel is listed under My Deliveries.
-    await expect(page.getByRole("link", { name: trackingNo })).toBeVisible();
+    await expect(page.getByRole("link", { name: trackingNo, exact: true })).toBeVisible();
   });
 
   test("opens the tracking page from the label QR on a 360 px phone, without logging in", async ({ browser }) => {
@@ -43,9 +43,10 @@ test.describe("Scenario 1: customer books a parcel and tracks it", () => {
     const page = await phone.newPage();
     await page.goto(`/?track=${trackingNo}`);
 
-    await expect(page.getByText(trackingNo, { exact: true })).toBeVisible();
-    await expect(page.getByText("CREATED", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("45 Peradeniya Road, Kandy")).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/track/${trackingNo}$`));
+    await expect(page.getByRole("heading", { level: 1, name: trackingNo })).toBeVisible();
+    await expect(page.getByText(statusText("CREATED")).first()).toBeVisible();
+    await expect(page.getByText("Kandy", { exact: true })).toBeVisible();
     await phone.close();
   });
 });

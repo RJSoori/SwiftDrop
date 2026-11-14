@@ -134,6 +134,26 @@ export function compose(...args: string[]) {
   execFileSync("docker", ["compose", "-f", COMPOSE_FILE, ...args], { stdio: "pipe", timeout: 120_000 });
 }
 
+/** Status text as the web app shows it: "OUT_FOR_DELIVERY" matches "Out for delivery" in any letter case. */
+export function statusText(status: string): RegExp {
+  return new RegExp(`^\\s*${status.replace(/_/g, " ")}\\s*$`, "i");
+}
+
+/** The public tracking page for a parcel (what the label QR opens). */
+export async function openTracking(page: Page, trackingNo: string) {
+  await page.goto(`/track/${trackingNo}`);
+  await expect(page.getByRole("heading", { level: 1, name: trackingNo })).toBeVisible();
+}
+
+/** Courier app: moves an assigned parcel to the next status on the Update status screen. */
+export async function courierSetStatus(page: Page, parcelId: string, toStatus: string) {
+  await page.goto(`/courier/deliveries/${parcelId}`);
+  await page.getByRole("button", { name: "Update status" }).click();
+  await page.getByLabel("Next status").selectOption(toStatus);
+  await page.getByRole("button", { name: "Save status" }).click();
+  await expect(page).toHaveURL(new RegExp(`/courier/deliveries/${parcelId}$`));
+}
+
 /** A tiny valid PNG, used as the proof-of-delivery photo. */
 export const PROOF_PHOTO = {
   name: "proof.png",

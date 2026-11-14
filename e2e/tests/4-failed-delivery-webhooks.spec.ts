@@ -5,9 +5,12 @@ import {
   COURIER_NAME,
   PHONE,
   compose,
+  courierSetStatus,
   demoStoreEvents,
   loginUi,
+  openTracking,
   placeDemoStoreOrder,
+  statusText,
 } from "./support";
 
 type Delivery = { id: string; eventId: string; attempt: number; state: string };
@@ -15,10 +18,9 @@ type Delivery = { id: string; eventId: string; attempt: number; state: string };
 // Scenario 4: the courier fails the other parcel with a reason; the webhook fires; the Demo Store is stopped,
 // retries show; it comes back and the message is replayed from the dead-letter queue.
 test.describe("Scenario 4: failed delivery, webhook retries and dead-letter replay", () => {
-  test("the courier fails a delivery with a reason and tracking shows it", async ({ browser }) => {
+  test("the courier fails a delivery with a reason and tracking shows it", async ({ browser, page }) => {
     const order = await placeDemoStoreOrder();
     const dispatcher = await Api.as(ACCOUNTS.dispatcher);
-    const courier = await Api.as(ACCOUNTS.courier);
     const couriers = await dispatcher.call<Array<{ userId: string; fullName: string }>>("GET", "/dispatch/couriers/workloads");
     const courierId = couriers.find((c) => c.fullName === COURIER_NAME)!.userId;
 
@@ -26,18 +28,19 @@ test.describe("Scenario 4: failed delivery, webhook retries and dead-letter repl
     await expect(async () => {
       await dispatcher.call("POST", `/dispatch/parcels/${order.parcelId}/assign`, { courierId });
     }).toPass({ timeout: 20_000 });
-    for (const toStatus of ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"]) {
-      await courier.call("POST", `/courier/deliveries/${order.parcelId}/status`, { toStatus });
+    await loginUi(page, ACCOUNTS.courier);
+    for (const status of ["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"]) {
+      await courierSetStatus(page, order.parcelId, status);
     }
-    await courier.call("POST", `/courier/deliveries/${order.parcelId}/fail`, {
-      reasonCode: "RECIPIENT_UNAVAILABLE",
-      note: "Nobody home, gate locked",
-    });
+    await page.getByRole("button", { name: "Delivery failed" }).click();
+    await page.getByLabel("Reason").selectOption("RECIPIENT_UNAVAILABLE");
+    await page.getByLabel(/^Note/).fill("Nobody home, gate locked");
+    await page.getByRole("button", { name: "Mark as failed" }).click();
 
     const phone = await browser.newContext(PHONE);
-    const page = await phone.newPage();
-    await page.goto(`/?track=${order.trackingNo}`);
-    await expect(page.getByText("FAILED").first()).toBeVisible();
+    const tracking = await phone.newPage();
+    await openTracking(tracking, order.trackingNo);
+    await expect(tracking.getByText(statusText("FAILED")).first()).toBeVisible();
     await phone.close();
   });
 
