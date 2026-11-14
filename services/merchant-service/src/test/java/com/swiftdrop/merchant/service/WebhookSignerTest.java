@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class WebhookSignerTest {
 
     private final WebhookSigner signer = new WebhookSigner();
-    private final String secret = "whsec_0123456789abcdef0123456789abcdef";
+    private final String secret = "test-signing-secret-0123456789abcdef";
 
     @Test
     @DisplayName("T-12: Valid signature with current timestamp is accepted")
@@ -31,7 +31,7 @@ public class WebhookSignerTest {
         String body = "{\"event\":\"parcel.status.changed\"}";
 
         String header = signer.buildHeader(now, body, secret);
-        boolean valid = signer.verify(header, body, "whsec_wrong_secret_1234567890", 300);
+        boolean valid = signer.verify(header, body, "wrong-signing-secret-0123456789", 300);
 
         assertThat(valid).isFalse();
     }
