@@ -33,6 +33,10 @@ class InternalOtpNotificationControllerTest {
     @MockitoBean
     private SmsSender smsSender;
 
+    // The imported ParcelStatusChangedListener now sends notifications through Notifier.
+    @MockitoBean
+    private com.swiftdrop.notification.service.Notifier notifier;
+
     @Test
     void validRequestIsAccepted() throws Exception {
         UUID parcelId = UUID.randomUUID();
