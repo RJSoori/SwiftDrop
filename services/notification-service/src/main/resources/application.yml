@@ -26,13 +26,6 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        # A failed message is dead-lettered to notification.q.dlq, never requeued in a loop.
-        default-requeue-rejected: false
-  mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:1025}
 
 management:
   endpoints:

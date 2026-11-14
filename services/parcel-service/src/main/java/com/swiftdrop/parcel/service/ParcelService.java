@@ -310,9 +310,7 @@ public class ParcelService {
         }
 
         parcel.setCurrentStatus(target);
-        // Flush now so @Version is incremented before the event reads it. With save() alone the first change after
-        // booking went out as aggregateVersion 0, equal to the booking, and realtime-service dropped it as stale.
-        parcel = parcelRepository.saveAndFlush(parcel);
+        parcel = parcelRepository.save(parcel);
 
         ParcelStatusHistory history = new ParcelStatusHistory(
                 parcel.getId(), current, target, request.actorId(),
@@ -338,7 +336,7 @@ public class ParcelService {
     }
 
     /**
-     * Returns recipient contact details (name and phone) for M5 and M9.
+     * Returns recipient contact and drop-off details for M5 and M9.
      */
     @Transactional(readOnly = true)
     public RecipientContactResponse getRecipientContact(UUID parcelId) {
@@ -348,9 +346,8 @@ public class ParcelService {
         return new RecipientContactResponse(
                 parcel.getRecipientName() != null ? parcel.getRecipientName() : "Customer",
                 parcel.getRecipientPhone() != null ? parcel.getRecipientPhone() : "",
-                parcel.getTrackingNo(),
                 parcel.getDropoffAddress(),
-                parcel.getCustomerId()
+                parcel.getDropoffCity()
         );
     }
 

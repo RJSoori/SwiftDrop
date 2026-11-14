@@ -51,14 +51,17 @@ public class RabbitConfig {
         return BindingBuilder.bind(dispatchQueue()).to(parcelEventsExchange()).with(EventTopology.PARCEL_STATUS_CHANGED);
     }
 
-    // Not a @Bean on purpose: Spring Boot hands any MessageConverter bean to the RabbitTemplate, and the shared
-    // outbox relay sends payloads that are already JSON strings. A JSON converter there encodes them a second
-    // time, so consumers receive "\"{...}\"" instead of an object (realtime-service could not read parcel.assigned).
     @Bean
-    SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(ConnectionFactory connectionFactory) {
+    Jackson2JsonMessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory, Jackson2JsonMessageConverter converter) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
-        factory.setMessageConverter(new Jackson2JsonMessageConverter());
+        factory.setMessageConverter(converter);
         factory.setDefaultRequeueRejected(false);
         return factory;
     }

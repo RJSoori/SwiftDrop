@@ -1,5 +1,6 @@
 package com.swiftdrop.dispatch.courier;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
@@ -41,7 +42,7 @@ public final class CourierModels {
     public record AssignedDelivery(UUID parcelId, String status) {
     }
 
-    public record ParcelContact(String recipientName, String recipientPhone) {
+    public record ParcelContact(String recipientName, String recipientPhone, String dropoffAddress, String dropoffCity) {
     }
 
     public record StoredProof(String objectKey) {
@@ -53,7 +54,9 @@ public final class CourierModels {
     public record DeliverySummary(UUID parcelId, String status, boolean completed) {
     }
 
-    public record DeliveryDetails(UUID parcelId, String status, String recipientName, String recipientPhone) {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record DeliveryDetails(UUID parcelId, String status, String recipientName, String recipientPhone,
+                                 String dropoffAddress, String dropoffCity) {
     }
 
     public record ProofUploadResponse(UUID proofId) {
