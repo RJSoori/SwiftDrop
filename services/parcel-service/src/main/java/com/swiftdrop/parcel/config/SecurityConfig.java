@@ -47,10 +47,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
-                                                   ProblemDetailAuthHandler authHandler) throws Exception {
+                                                   ProblemDetailAuthHandler authHandler,
+                                                   com.swiftdrop.common.security.InternalTokenAuthorizationManager internalToken) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
+                        .requestMatchers(HttpMethod.POST, "/internal/v1/parcels").access(internalToken)
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -17,8 +17,10 @@ import java.util.UUID;
 public class InternalParcelController {
 
     private final ParcelService parcelService;
+    private final com.swiftdrop.parcel.service.MerchantParcelCreation merchantCreation;
 
-    public InternalParcelController(ParcelService parcelService) {
+    public InternalParcelController(ParcelService parcelService, com.swiftdrop.parcel.service.MerchantParcelCreation merchantCreation) {
+        this.merchantCreation = merchantCreation;
         this.parcelService = parcelService;
     }
 
@@ -26,8 +28,9 @@ public class InternalParcelController {
      * POST /internal/v1/parcels: Called by M6 (merchant-service) to create a merchant parcel.
      */
     @PostMapping
-    public ResponseEntity<ParcelResponse> createMerchantParcel(@RequestBody InternalCreateParcelRequest request) {
-        ParcelResponse response = parcelService.createMerchantParcel(request);
+    public ResponseEntity<ParcelResponse> createMerchantParcel(@RequestBody InternalCreateParcelRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String key) {
+        ParcelResponse response = merchantCreation.create(request, key);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

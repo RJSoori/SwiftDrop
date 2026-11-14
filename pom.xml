@@ -36,6 +36,16 @@
         <java.version>21</java.version>
         <spring-cloud.version>2025.0.3</spring-cloud.version>
         <jacoco.version>0.8.14</jacoco.version>
+        <!-- Minimum line coverage per module, checked on `mvn verify` (see the coverage-check execution below). -->
+        <coverage.minimum>0.70</coverage.minimum>
+
+        <!-- Security patches over the versions Spring Boot 3.5.16 ships (found by the Trivy scan in CI).
+             Same release lines, so no code changes. Remove an entry once Boot's own version is newer. -->
+        <tomcat.version>10.1.59</tomcat.version>               <!-- 6 CRITICAL, e.g. CVE-2026-65182 -->
+        <netty.version>4.1.137.Final</netty.version>           <!-- CRITICAL CVE-2026-75595 -->
+        <jackson-bom.version>2.21.7</jackson-bom.version>      <!-- HIGH, jackson-core/databind -->
+        <postgresql.version>42.7.12</postgresql.version>       <!-- HIGH -->
+        <bouncycastle.version>1.85</bouncycastle.version>      <!-- CRITICAL CVE-2026-8763, via spring-cloud-starter -->
     </properties>
 
     <dependencyManagement>
@@ -46,6 +56,11 @@
                 <version>${spring-cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.swiftdrop</groupId>
@@ -82,6 +97,37 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                    </execution>
+                    <!-- Fails the build if a module's line coverage drops below ${coverage.minimum}.
+                         Boot entry points, config wiring, DTOs and temporary stubs hold no logic, so the
+                         gate ignores them (the HTML report still shows them). Modules with no tests are skipped. -->
+                    <execution>
+                        <id>coverage-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/*Application.class</exclude>
+                                <exclude>**/*Config.class</exclude>
+                                <exclude>**/*Configuration.class</exclude>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/Stub*.class</exclude>
+                            </excludes>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

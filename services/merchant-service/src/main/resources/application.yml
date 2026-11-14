@@ -13,7 +13,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
     properties:
       hibernate.default_schema: merchant
   security:
@@ -22,9 +22,34 @@ spring:
         jwt:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+PARCEL_SERVICE_URL: ${PARCEL_SERVICE_URL:http://localhost:8082}
+PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:}
+WEBHOOK_RETRY_DELAYS: ${WEBHOOK_RETRY_DELAYS:PT5S,PT10S,PT20S,PT40S}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  health:
+    rabbit:
+      enabled: false
+
+# Broker messages are wakeups; the database journal recovers deliveries after outages.
+spring.rabbitmq.publisher-confirm-type: correlated
+spring.rabbitmq.listener.simple.retry.enabled: true
+spring.rabbitmq.listener.simple.retry.max-attempts: 5
+spring.rabbitmq.listener.simple.retry.initial-interval: 1000
+spring.rabbitmq.listener.simple.default-requeue-rejected: false
+spring.data.redis.connect-timeout: 1s
+spring.data.redis.timeout: 1s
+spring.rabbitmq.publisher-returns: true

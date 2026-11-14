@@ -40,3 +40,7 @@ management:
   health:
     rabbit:
       enabled: false
+
+# Merchant callbacks require stable event envelopes and confirmed delivery.
+spring.rabbitmq.publisher-confirm-type: correlated
+spring.rabbitmq.publisher-returns: true

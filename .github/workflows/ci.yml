@@ -1,12 +1,24 @@
 name: CI
 
+# Runs on every PR into dev or main, and again after the merge lands.
 on:
-  push:
   pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+# A new push to the same PR cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   backend:
-    name: Maven build + tests
+    name: Maven build, tests, coverage gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -16,13 +28,43 @@ jobs:
           java-version: "21"
           cache: maven
       # Testcontainers uses the runner's Docker daemon.
-      - run: mvn -B verify
-      - name: Upload JaCoCo report
+      # verify also runs the JaCoCo gate: each module needs 70% line coverage (see coverage-check in pom.xml).
+      - run: mvn -B -fae verify  # -fae: report every module that fails, not just the first
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "### Line coverage per module (gate: 70% unless the module's pom sets coverage.minimum)"
+            echo "Counted like the gate: \`*Application\`, \`*Config\`, \`*Configuration\`, \`Stub*\` and \`dto\` package classes are left out."
+            echo ""
+            echo "| Module | Covered | Total | Coverage |"
+            echo "|---|---:|---:|---:|"
+            for csv in services/*/target/site/jacoco/jacoco.csv; do
+              module=${csv#services/}; module=${module%%/*}
+              # CSV columns: group, package, class, ..., LINE_MISSED ($8), LINE_COVERED ($9)
+              awk -F, -v m="$module" 'NR>1 && $2 !~ /\.dto(\.|$)/ && $3 !~ /(Application|Config|Configuration)$/ && $3 !~ /^Stub/ {missed+=$8; covered+=$9}
+                END {t=missed+covered; printf "| %s | %d | %d | %.1f%% |\n", m, covered, t, (t ? 100*covered/t : 0)}' "$csv"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload JaCoCo reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-report
-          path: services/coverage/target/site/jacoco-aggregate
+          path: |
+            services/coverage/target/site/jacoco-aggregate
+            services/*/target/site/jacoco
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports
+          path: services/*/target/surefire-reports
+          if-no-files-found: ignore
 
   web:
     name: Web lint, type-check, test, build
@@ -43,12 +85,70 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  docker:
-    name: Build Docker images
+  demo-store:
+    name: Demo Store tests
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node --test
+        working-directory: apps/demo-store
+
+  docker:
+    name: Build and scan Docker images
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_FILE: infra/compose/docker-compose.yml
+      # Trivy runs from its official image, pinned by digest. We avoid aquasecurity/trivy-action:
+      # its tags were hijacked in a supply-chain attack in March 2026.
+      TRIVY_IMAGE: aquasec/trivy:0.65.0@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       # Throwaway secrets so compose can interpolate .env; images are built, never pushed.
       - run: ./scripts/dev-keys.sh
-      - run: docker compose -f infra/compose/docker-compose.yml build
+      - run: docker compose build
+
+      # Scans our own images (swiftdrop-*) for OS and library vulnerabilities that have a fix available.
+      # HIGH and CRITICAL are reported; any CRITICAL fails the job. Accepted risks live in .trivyignore.
+      - name: Trivy scan
+        run: |
+          mkdir -p trivy-reports
+          trivy() {
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+              -v "$PWD/trivy-reports:/reports" \
+              -v "$PWD/.trivyignore:/.trivyignore:ro" \
+              "$TRIVY_IMAGE" "$@"
+          }
+          {
+            echo "### Trivy image scan (fixable vulnerabilities only; CRITICAL fails the build)"
+            echo "| Image | Critical | High |"
+            echo "|---|---:|---:|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          failed=0
+          for image in $(docker compose config --images | grep '^swiftdrop-'); do
+            trivy image --quiet --timeout 15m --skip-version-check --ignorefile /.trivyignore \
+              --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL \
+              --format json --output "/reports/$image.json" "$image"
+            trivy convert --format table --output "/reports/$image.txt" "/reports/$image.json"
+            critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "trivy-reports/$image.json")
+            high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "trivy-reports/$image.json")
+            echo "| $image | $critical | $high |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$critical" -gt 0 ]; then
+              echo "::error title=Trivy::$image has $critical fixable CRITICAL vulnerabilities (see the trivy-reports artifact)"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-reports
+          path: trivy-reports
+          if-no-files-found: ignore
