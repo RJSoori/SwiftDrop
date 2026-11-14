@@ -124,6 +124,15 @@ class GatewaySecurityTest {
     }
 
     @Test
+    void clientCredentialsTokenEndpointIsPublicForPostOnly() {
+        client.post().uri("/api/v1/auth/oauth/token").exchange().expectStatus().isOk();
+        client.post().uri("/api/v1/auth/oauth/token").cookie("sd_access", "expired").exchange().expectStatus().isOk();
+        client.post().uri("/api/v1/auth/oauth/token").header("Authorization", "Basic c2RfY2xpZW50X3g6c2Rfc2VjcmV0X3k=")
+                .exchange().expectStatus().isOk();
+        client.get().uri("/api/v1/auth/oauth/token").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void publicRouteIgnoresStaleCookie() {
         client.post().uri("/api/v1/auth/refresh").cookie("sd_access", "expired").exchange().expectStatus().isOk();
     }
