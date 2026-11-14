@@ -81,6 +81,25 @@ These accounts are created automatically when the app starts (`SEED_DEMO_DATA=tr
 | merchant@swiftdrop.test | Merchant (approved) |
 | pending-merchant@swiftdrop.test | Merchant (waiting for approval) |
 
+## Demo data
+
+To fill the app with sample parcels (one at each delivery stage, across Colombo, Kandy and Galle), start the stack and run:
+
+```bash
+node scripts/seed-demo.mjs
+```
+
+It creates the parcels for `customer@swiftdrop.test` through the gateway, then assigns couriers and moves them along as the dispatcher. It does nothing if the customer already has parcels.
+
+To start again from a clean database (before a demo, or when your data is in a bad state):
+
+```bash
+./scripts/reset-demo.sh             # wipes the database, rebuilds, starts, seeds
+./scripts/reset-demo.sh --no-build  # same, but reuses your existing images
+```
+
+This deletes everything in your local database and MinIO.
+
 ## Setting up Google login
 
 1. In Google Cloud Console, go to APIs & Services > OAuth consent screen. Create an External app and add your Google account as a test user.
@@ -100,7 +119,11 @@ npm ci
 npm test
 ```
 
-`mvn verify` needs Docker running, because some tests start a real Postgres database in a container. The coverage report is saved to `services/coverage/target/site/jacoco-aggregate/index.html`. GitHub Actions runs the tests on every push.
+`mvn verify` needs Docker running, because some tests start a real Postgres database in a container. The coverage report is saved to `services/coverage/target/site/jacoco-aggregate/index.html`.
+
+`mvn verify` also checks coverage: each module needs at least 70% line coverage, or the build fails. `*Application`, `*Config`, `*Configuration`, `Stub*` and `dto` classes don't count toward it. A service still in progress can set a lower temporary `coverage.minimum` in its own pom (parcel, realtime, dispatch and merchant services do this for now).
+
+GitHub Actions runs on every PR into `dev` or `main`, and again after the merge. It runs the Maven build with the coverage gate, the web checks, and a Docker image build with a Trivy vulnerability scan. A fixable CRITICAL vulnerability in one of our images fails the run. Accepted exceptions go in `.trivyignore`, each with a reason and an expiry date. Coverage and Trivy reports are attached to each run as artifacts, and a summary table appears on the run page.
 
 ## Folder structure
 
@@ -108,7 +131,7 @@ npm test
 services/        Spring Boot services and common-lib (shared code)
 apps/web/        Next.js frontend
 infra/compose/   docker-compose.yml and .env.example
-scripts/         dev-keys.sh
+scripts/         dev-keys.sh, seed-demo.mjs, reset-demo.sh
 docs/            diagrams
 ```
 
