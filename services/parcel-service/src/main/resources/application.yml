@@ -31,6 +31,8 @@ spring:
 swiftdrop:
   outbox:
     enabled: true
+  tracking:
+    public-base-url: ${TRACKING_PUBLIC_BASE_URL:http://localhost:3000/track}
 
 management:
   endpoints:

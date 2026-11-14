@@ -146,6 +146,18 @@ export type ParcelDetailResponse = {
   history: ParcelStatusHistory[];
 };
 
+export type TrackingView = {
+  trackingNo: string;
+  currentStatus: ParcelStatus;
+  pickupCity: string | null;
+  dropoffCity: string | null;
+  timeline: {
+    status: ParcelStatus;
+    occurredAt: string;
+  }[];
+  updatedAt: string;
+};
+
 export type QuoteRequest = {
   weightKg?: number;
   lengthCm?: number;
@@ -154,6 +166,13 @@ export type QuoteRequest = {
   strategy?: "WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS";
   pickupZoneId?: string;
   dropoffZoneId?: string;
+  /** Coordinates pick the delivery zones and their pricing rule; without them the default rates apply. */
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  /** LARGE parcels pay the zone's size multiplier. */
+  size?: string;
 };
 
 export type QuoteResponse = {
@@ -162,6 +181,14 @@ export type QuoteResponse = {
   volumetricWeightKg: number;
   chargeableWeightKg: number;
   strategy: string;
+  /** Set when the quote was priced by a zone rule. */
+  pickupZoneId?: string;
+  pickupZoneName?: string;
+  dropoffZoneId?: string;
+  dropoffZoneName?: string;
+  baseFeeLkr?: number;
+  perKgFeeLkr?: number;
+  sizeMultiplier?: number;
 };
 
 export type CreateParcelRequest = {
