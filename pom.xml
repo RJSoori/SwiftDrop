@@ -67,7 +67,7 @@
                 <artifactId>common-lib</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <!-- Shared Testcontainers base; add to a service with <scope>test</scope>. See docs/testing.md -->
+            <!-- Shared Testcontainers base; add to a service with <scope>test</scope>. See services/test-support -->
             <dependency>
                 <groupId>com.swiftdrop</groupId>
                 <artifactId>test-support</artifactId>
