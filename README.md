@@ -41,6 +41,76 @@ SwiftDrop is a parcel delivery and courier management system for Sri Lanka, buil
 
 The Spring services (8081 to 8088) only listen inside the compose network. Reach them through the gateway on 8080. The browser only talks to the web app on 3000.
 
+## How SwiftDrop covers the brief
+
+Each line of the assignment brief, and where it is in the system.
+
+### Customer
+
+| Brief | In SwiftDrop |
+|---|---|
+| Secure signup and login, including Login with Google (OAuth 2.0) | Email and password (BCrypt), or **Continue with Google** on the login page and **Sign up with Google** on the sign-up page (authorisation code flow with PKCE). auth-service |
+| Create a delivery request (pickup, drop-off, size, weight) | **Book a Delivery** on the customer dashboard: pickup and drop-off city and address, recipient, size, weight, optional dimensions, standard or express. `POST /api/v1/parcels` |
+| Estimated fee before confirming | The booking form shows the quote first (`POST /api/v1/parcels/quote`). The fee comes from the drop-off zone's pricing rule |
+| Track status in real time (Created to Delivered or Failed) | Live timeline over SSE and STOMP WebSocket from realtime-service |
+| Delivery history and receipt download | **My Parcels** with status history, and receipt and label PDFs (`/api/v1/parcels/{id}/receipt.pdf`, `/label.pdf`) |
+| Mobile-friendly public tracking page | `/track/{trackingNo}`, no login, works at 360 px, opened from the QR code on the label. Shows no names, phone numbers or addresses |
+
+### Merchant
+
+| Brief | In SwiftDrop |
+|---|---|
+| Registration with admin approval | Merchant sign-up at `/signup/merchant`; the account stays pending until an admin approves it on **Merchants** |
+| Orders through a secured API with API keys or OAuth 2.0 client credentials | Both. API key in `X-API-Key` (the gateway swaps it for a short merchant token), or client id and secret at `POST /api/v1/auth/oauth/token`. Orders at `POST /api/v1/merchant/orders` with an `Idempotency-Key` |
+| Webhooks on status changes | Signed with HMAC-SHA256, retried four times, then dead-lettered, with a Replay button. The Demo Store on port 4000 receives them and checks the signature |
+| Dashboard of all orders and states | Merchant dashboard with totals per state, order list and order detail with history |
+
+### Courier
+
+| Brief | In SwiftDrop |
+|---|---|
+| Login | Same login as everyone; courier pages need the COURIER role |
+| Today's assigned deliveries | Courier app (phone-sized, installable) with Active and Completed lists, updated live |
+| Status at each stage with a note or proof | Picked up, in transit, out for delivery; delivery needs a photo (stored in MinIO), the recipient's name and the OTP sent to the recipient |
+| Failed delivery with a reason | Reason codes, with a note required for OTHER |
+
+### Dispatcher and admin
+
+| Brief | In SwiftDrop |
+|---|---|
+| Unassigned parcels and assignment | Dispatcher page: queue, suggested courier, Assign. A second assignment of the same parcel gets 409 |
+| Courier workloads | Active deliveries per courier on the dispatcher page |
+| Manage users, merchants, zones and pricing | Admin **Users** (create staff, disable, enable), **Merchants** (approve, reject, suspend, reinstate), **Zones** (draw on a map) with pricing rules, and an audit log |
+| Basic reports | **Reports**: deliveries per day, success and failure rate, CSV download |
+
+### System requirements
+
+| Brief | In SwiftDrop |
+|---|---|
+| Real-time updates | SSE for the public tracking page, STOMP over WebSocket for the dashboards, Redis pub/sub between instances |
+| Role-based access control | Role check per path at the gateway, then `@PreAuthorize` and ownership checks in every service |
+| JWT plus OAuth 2.0 | RS256 JWTs from auth-service, checked at the gateway and in each service. OAuth 2.0 for Google login and for merchant client credentials |
+| Asynchronous integration for status events | RabbitMQ topic exchange `parcel.events`, written through a transactional outbox. Status events drive notifications, merchant webhooks, live tracking and reports |
+| Notification service consuming status events | notification-service sends emails and mock SMS (both caught by Mailpit) and the delivery OTP |
+| Containerised deployment | Every service, the web app, the Demo Store, Postgres, RabbitMQ, Redis, MinIO and Mailpit in one Docker Compose file |
+| Personal data | Bean Validation on every request body, BCrypt passwords, RFC 7807 errors without stack traces, personal data masked in logs, user phone numbers encrypted |
+
+### Implementation, testing and bonus
+
+| Brief | In SwiftDrop |
+|---|---|
+| Frontend in React, Angular or Vue | Next.js 15 (React) with TypeScript and Tailwind, responsive down to 360 px |
+| Backend framework | Java 21, Spring Boot 3.5 microservices behind Spring Cloud Gateway |
+| Versioned, validated APIs with central error handling | Every path is under `/api/v1`. Errors come from one `GlobalExceptionHandler` in common-lib as RFC 7807 `application/problem+json` |
+| Broker, notification consumer, webhooks with retry | See the system requirements above, and the webhook retry flow in [docs/phase2-implementation.md](docs/phase2-implementation.md) |
+| No hard-coded secrets | All settings come from `infra/compose/.env` (see below). `dev-keys.sh` generates the secrets |
+| Dockerised, docker-compose | `services/Dockerfile` builds every Spring service; `apps/web` and `apps/demo-store` have their own. `infra/compose/docker-compose.yml` runs everything |
+| Unit and integration tests, an event-flow test | 456 backend tests, including Testcontainers tests with real Postgres, RabbitMQ and Redis. Event-flow tests: `ReportingFlowIntegrationTest`, `TrackingEventFlowTest`, `MerchantIntegrationTest` |
+| Authorisation tests (courier against courier) | `CourierControllerTest.courierNotAssignedToParcelGetsForbiddenForReadAndUpdate`, plus `ParcelControllerTest`, `AuthorizationTest`, `GatewaySecurityTest` |
+| Measurable coverage and test results | JaCoCo with a 70% line gate in CI (80.8% line coverage overall). Results in [docs/test-report.md](docs/test-report.md) |
+| Bonus: AI delivery assistant with MCP | Done. Chat panel for customers on the Gemini API with three tools, and the same tools as an MCP server (see below) |
+| Bonus: Kubernetes | Not built. See known limitations |
+
 ## Running it from a clean clone
 
 You need:
@@ -139,7 +209,7 @@ They are created when auth-service starts with `SEED_DEMO_DATA=true`. All of the
 4. Add `http://localhost:3000/api/v1/auth/oauth2/callback/google` under Authorised redirect URIs.
 5. Put the client ID and secret in `infra/compose/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then run `docker compose up -d auth-service`.
 
-New Google users become customers. If the Google email is verified and matches an existing account, the two are linked.
+The login page has **Continue with Google** and the sign-up page has **Sign up with Google**. Both use the same flow: a new Google user gets a customer account on their first sign-in, and if the Google email is verified and matches an existing account, the two are linked. Merchants sign up with the merchant form instead, because their account needs approval.
 
 ## AI assistant
 
@@ -187,7 +257,7 @@ GitHub Actions runs the Maven build with the coverage gate, the web checks, a Do
 
 The full script, with who speaks when, is in [docs/demo-script.md](docs/demo-script.md).
 
-1. **Customer booking.** Log in as `customer@swiftdrop.test`, get a quote for 2 kg from Colombo to Kandy, book it, download the label and open the tracking page from its QR code on a phone, without logging in.
+1. **Customer booking.** Sign in with Google (or log in as `customer@swiftdrop.test`), get a quote for 2 kg from Colombo to Kandy, book it, download the label and open the tracking page from its QR code on a phone, without logging in.
 2. **Merchant order.** Place an order in the Demo Store (http://localhost:4000). It reaches SwiftDrop through the merchant API with an API key and an Idempotency-Key, and shows on the `merchant@swiftdrop.test` dashboard. When the parcel moves, a signed webhook reaches the Demo Store.
 3. **Dispatch and delivery.** As the dispatcher, assign the new parcels to a courier. As `courier1@swiftdrop.test`, move one to out for delivery. The tracking page updates live, the recipient's OTP arrives in Mailpit, and the courier delivers with a photo and the OTP.
 4. **Failed delivery and webhooks.** The courier fails a delivery with a reason. Then stop the Demo Store, move a merchant parcel, watch the webhook retry and go dead, start the Demo Store again and replay it from the merchant's webhook page.
@@ -211,6 +281,15 @@ infra/compose/   docker-compose.yml, .env.example and the database init script
 scripts/         dev-keys.sh, seed-demo.mjs, reset-demo.sh
 docs/            reports, design notes and diagrams
 ```
+
+## Submission
+
+| The brief asks for | Where it is |
+|---|---|
+| Source code with a README and setup steps | This repository (`main`, tag `v1.0`) and this file |
+| Design documentation (PDF) | The Phase 1 design report PDF, submitted separately, with [docs/phase2-implementation.md](docs/phase2-implementation.md) attached as the Phase 2 addendum |
+| Test reports and coverage summary | [docs/test-report.md](docs/test-report.md); the full JaCoCo and Playwright HTML reports are attached to each GitHub Actions run |
+| Contribution sheet | [docs/contribution-sheet.md](docs/contribution-sheet.md) |
 
 ## Documents
 

@@ -25,14 +25,16 @@
 
 ## Timing
 
+Speakers follow the demo roles in the team plan ("SwiftDrop Phase 2: Who Builds What", section 5). Every member should also be ready to explain their own slice if asked.
+
 | Time | Part | Speaker |
 |---|---|---|
 | 0:00 to 1:30 | Introduction and architecture | M1 |
-| 1:30 to 4:30 | Scenario 1: customer booking and tracking | M2, M3, M8, M7 |
+| 1:30 to 4:30 | Scenario 1: customer booking and tracking | M2, M3, M7 |
 | 4:30 to 7:00 | Scenario 2: merchant order from the Demo Store | M2, M6 |
 | 7:00 to 10:30 | Scenario 3: dispatch and delivery | M4, M9, M7, M5 |
-| 10:30 to 13:00 | Scenario 4: failed delivery and webhooks | M9, M6, M5 |
-| 13:00 to 14:00 | AI assistant | M1 |
+| 10:30 to 13:00 | Scenario 4: failed delivery and webhooks | M9, M6 |
+| 13:00 to 14:00 | AI assistant and architecture questions | M1 |
 | 14:00 to 15:00 | Reports, admin, tests and CI | M8, M2, M10 |
 
 ## 0:00 Introduction and architecture (M1)
@@ -49,7 +51,7 @@
 |---|---|---|---|---|
 | 1.1 | M2 | In a fresh private window, open http://localhost:3000/login and press **Continue with Google**. Sign in with the team's test Google account | The Google consent screen, then the customer dashboard. Say that the login uses the authorisation code flow with PKCE and that new Google users become customers | If Google login is not set up or fails: say so, press the button only to show the redirect to Google, then use the customer tab that is already logged in with a password |
 | 1.2 | M3 | In the customer tab, open **Book a Delivery**. Pickup Colombo, drop-off Kandy, 2 kg. Get the quote | A fee of LKR 650 | |
-| 1.3 | M8 | Point at the fee | Say that the fee comes from the Kandy zone's pricing rule, found by a PostGIS point-in-polygon lookup, using the Strategy pattern | |
+| 1.3 | M3 | Point at the fee | Say that the fee comes from the Kandy zone's pricing rule, found by a PostGIS point-in-polygon lookup, using the Strategy pattern | |
 | 1.4 | M3 | Fill in the recipient and book | A new tracking number `SD-...` and status CREATED. Say that a retried booking with the same Idempotency-Key returns the same parcel | |
 | 1.5 | M7 | Download the receipt and the label | Two PDFs. The label has a QR code | |
 | 1.6 | M7 | Scan the QR code with the phone (or open `/track/{trackingNo}` at 360 px) | The public tracking page with no login and no names, phone numbers or addresses | |
@@ -84,7 +86,7 @@ Start step 4.3 as early as you can: the webhook takes about 95 seconds to go dea
 | 4.1 | M9 | On the phone, open a seeded parcel that is out for delivery and press **Mark as failed**. Pick a reason. Show that the reason OTHER needs a note | The parcel is FAILED and the tracking page shows the reason | |
 | 4.2 | M6 | In the terminal: `docker compose -f infra/compose/docker-compose.yml stop demo-store` | The Demo Store tab stops loading | |
 | 4.3 | M6 | On the phone, move the Demo Store parcel on to in transit | The merchant's delivery log shows the delivery waiting to retry, with the attempt count going up | |
-| 4.4 | M5 | While it waits, show RabbitMQ: `webhook.retry.0.q` to `webhook.retry.3.q` and `webhook.dead.q` | Say that each retry queue has a timeout and sends the message back when it runs out, and that after five failed attempts it goes to the dead queue | |
+| 4.4 | M6 | While it waits, show RabbitMQ: `webhook.retry.0.q` to `webhook.retry.3.q` and `webhook.dead.q` | Say that each retry queue has a timeout and sends the message back when it runs out, and that after five failed attempts it goes to the dead queue | |
 | 4.5 | M6 | When the log shows DEAD: `docker compose -f infra/compose/docker-compose.yml start demo-store`, wait a few seconds, then press **Replay** on that delivery | The state goes to SENT and the event appears in the Demo Store with the same event id. Pressing Replay again is refused | If the delivery is not DEAD yet when time runs short, show a DEAD delivery from an earlier rehearsal, or move on and come back to it at the end |
 
 ## 13:00 AI assistant (M1)
