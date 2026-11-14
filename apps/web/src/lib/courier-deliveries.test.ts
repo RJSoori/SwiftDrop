@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  courierDeliveryTopics,
   deliveryDetailsSchema,
   deliveryOtpSchema,
   failDeliverySchema,
@@ -36,12 +37,21 @@ describe("today's courier deliveries response schema", () => {
   });
 });
 
+describe("courier live updates", () => {
+  it("subscribes only to the logged-in courier's topic", () => {
+    expect(courierDeliveryTopics("7b2f410c-68e9-4c65-99ba-08a60b7678f7")).toEqual([
+      "/topic/courier/7b2f410c-68e9-4c65-99ba-08a60b7678f7",
+    ]);
+    expect(courierDeliveryTopics(undefined)).toBeNull();
+  });
+});
+
 describe("courier delivery details response schema", () => {
   const validDetails = {
     parcelId: "7b2f410c-68e9-4c65-99ba-08a60b7678f7",
     status: "OUT_FOR_DELIVERY",
     recipientName: "Nimal Perera",
-    dropOffAddress: "100 University Avenue",
+    recipientPhone: "Recipient phone",
   };
 
   it("accepts parcel detail responses", () => {
@@ -52,7 +62,7 @@ describe("courier delivery details response schema", () => {
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, parcelId: "not-a-uuid" }).success).toBe(false);
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, status: "PENDING" }).success).toBe(false);
     expect(deliveryDetailsSchema.safeParse({ ...validDetails, recipientName: "" }).success).toBe(false);
-    expect(deliveryDetailsSchema.safeParse({ ...validDetails, dropOffAddress: null }).success).toBe(false);
+    expect(deliveryDetailsSchema.safeParse({ ...validDetails, recipientPhone: null }).success).toBe(false);
   });
 });
 

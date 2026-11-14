@@ -9,5 +9,6 @@ public interface ParcelClient {
 
     ParcelContact getContact(UUID parcelId);
 
-    DeliveryStatus updateStatus(UUID parcelId, DeliveryStatus toStatus, String note, String proofUrl);
+    DeliveryStatus updateStatus(UUID parcelId, DeliveryStatus toStatus, UUID actorId, String note,
+                                String proofUrl, String reasonCode);
 }

@@ -69,12 +69,13 @@ public class CourierService {
     public DeliveryDetails deliveryDetails(UUID parcelId) {
         AssignedDelivery assignment = requireAssignment(parcelId);
         ParcelContact contact = parcelClient.getContact(parcelId);
-        return new DeliveryDetails(parcelId, assignment.status(), contact.recipientName(), contact.dropOffAddress());
+        return new DeliveryDetails(parcelId, assignment.status(), contact.recipientName(), contact.recipientPhone());
     }
 
     public DeliveryStatus updateStatus(UUID parcelId, StatusRequest request) {
         requireAssignment(parcelId);
-        DeliveryStatus updatedStatus = forwardStatus(parcelId, request.toStatus(), request.note(), null);
+        DeliveryStatus updatedStatus = forwardStatus(parcelId, CurrentUser.id(), request.toStatus(), request.note(),
+                null, null);
 
         if (updatedStatus == DeliveryStatus.OUT_FOR_DELIVERY) {
             String code = String.format(Locale.ROOT, "%04d", RANDOM.nextInt(10_000));
@@ -143,18 +144,16 @@ public class CourierService {
         }
 
         proof.setRecipientName(recipientName);
-        forwardStatus(parcelId, DeliveryStatus.DELIVERED, null, proofStorage.proofUrl(proof.getObjectKey()));
+        forwardStatus(parcelId, courierId, DeliveryStatus.DELIVERED, null,
+                proofStorage.proofUrl(proof.getObjectKey()), null);
         otp.markVerified(now);
         return DeliveryOutcome.DELIVERED;
     }
 
     public void failDelivery(UUID parcelId, FailRequest request) {
         requireAssignment(parcelId);
-        String note = request.reasonCode().name();
-        if (request.note() != null && !request.note().isBlank()) {
-            note += ": " + request.note().trim();
-        }
-        forwardStatus(parcelId, DeliveryStatus.FAILED, note, null);
+        String note = request.note() == null || request.note().isBlank() ? null : request.note().trim();
+        forwardStatus(parcelId, CurrentUser.id(), DeliveryStatus.FAILED, note, null, request.reasonCode().name());
     }
 
     private AssignedDelivery requireAssignment(UUID parcelId) {
@@ -162,9 +161,10 @@ public class CourierService {
                 .orElseThrow(() -> new AccessDeniedException("Courier is not assigned to this parcel"));
     }
 
-    private DeliveryStatus forwardStatus(UUID parcelId, DeliveryStatus status, String note, String proofUrl) {
+    private DeliveryStatus forwardStatus(UUID parcelId, UUID actorId, DeliveryStatus status, String note,
+                                         String proofUrl, String reasonCode) {
         try {
-            return parcelClient.updateStatus(parcelId, status, note, proofUrl);
+            return parcelClient.updateStatus(parcelId, status, actorId, note, proofUrl, reasonCode);
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().value() == HttpStatus.CONFLICT.value()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,

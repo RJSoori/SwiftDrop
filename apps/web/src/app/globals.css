@@ -115,6 +115,38 @@
   }
 }
 
+.courier-workspace {
+  color-scheme: dark;
+  --brand: #8c95ff;
+  --tape: #f2b200;
+  --background: #0f1226;
+  --foreground: #e8eaf6;
+  --card: #171b36;
+  --card-foreground: #e8eaf6;
+  --popover: #171b36;
+  --popover-foreground: #e8eaf6;
+  --primary: #8c95ff;
+  --primary-foreground: #0f1226;
+  --secondary: #22274a;
+  --secondary-foreground: #e8eaf6;
+  --muted: #1c2142;
+  --muted-foreground: #a3a9cb;
+  --accent: #252a52;
+  --accent-foreground: #c9cdff;
+  --destructive: #ff7070;
+  --border: #2a3058;
+  --input: #353c6c;
+  --ring: #8c95ff;
+  --sidebar: #0a0d1d;
+  --sidebar-foreground: #e8eaf6;
+  --sidebar-primary: #f2b200;
+  --sidebar-primary-foreground: #161a33;
+  --sidebar-accent: #1c2142;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f2447;
+  --sidebar-ring: #f2b200;
+}
+
 /* Headings: Archivo at its expanded width, like the lettering on a shipping label. */
 .display {
   font-stretch: 125%;

@@ -15,9 +15,7 @@
     <description>Dispatcher queue and courier workload service</description>
 
     <properties>
-        <!-- TEMPORARY: below the 70% team gate while this service is in progress. CI still fails if coverage
-             drops under this. Raise it, then delete this override, before the final submission. -->
-        <coverage.minimum>0.55</coverage.minimum>
+        <coverage.minimum>0.70</coverage.minimum>
     </properties>
 
     <dependencies>
@@ -36,6 +34,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -60,6 +63,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.13.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

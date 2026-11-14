@@ -25,7 +25,7 @@ export const deliveryDetailsSchema = z.object({
   parcelId: z.uuid(),
   status: deliverySummarySchema.shape.status,
   recipientName: z.string().min(1),
-  dropOffAddress: z.string().min(1),
+  recipientPhone: z.string(),
 });
 
 export const statusUpdateSchema = z.object({
@@ -80,6 +80,10 @@ const NEXT_COURIER_STATUSES: Record<DeliveryStatus, CourierUpdateStatus[]> = {
 
 export function nextCourierStatuses(status: DeliveryStatus): CourierUpdateStatus[] {
   return NEXT_COURIER_STATUSES[status];
+}
+
+export function courierDeliveryTopics(courierId: string | undefined): string[] | null {
+  return courierId ? [`/topic/courier/${encodeURIComponent(courierId)}`] : null;
 }
 
 async function fetchTodaysDeliveries(): Promise<DeliverySummary[]> {
