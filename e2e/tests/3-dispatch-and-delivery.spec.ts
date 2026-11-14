@@ -34,14 +34,21 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
 
     for (const trackingNo of [customerParcel.trackingNo, merchantParcel.trackingNo]) {
       const select = page.getByLabel(`Courier for ${trackingNo}`);
-      // The queue shows the oldest parcels first; page forward until the new one is on screen.
+      // The queue shows the oldest parcels first, 10 per page. Wait for each page to load before looking, then
+      // page forward; reload if dispatch-service has not received the new parcel yet.
       await expect(async () => {
-        if (!(await select.isVisible())) {
+        await page.reload();
+        const firstInQueue = page.getByLabel(/^Courier for /).first();
+        for (let pageNo = 1; ; pageNo++) {
+          await expect(firstInQueue).toBeVisible(); // this page has loaded
+          if (await select.isVisible()) return;
           const next = page.getByRole("button", { name: "Next" });
-          if (await next.isEnabled()) await next.click();
-          else await page.reload();
+          if (!(await next.isVisible()) || !(await next.isEnabled())) break; // no pager when one page
+          const before = await firstInQueue.getAttribute("aria-label");
+          await next.click();
+          await expect(firstInQueue).not.toHaveAttribute("aria-label", before!);
         }
-        await expect(select).toBeVisible({ timeout: 1_000 });
+        throw new Error(`${trackingNo} is not in the unassigned queue yet`);
       }, `${trackingNo} should be in the unassigned queue`).toPass({ timeout: 30_000 });
       const courierId = await select.locator("option", { hasText: COURIER_NAME }).getAttribute("value");
       await select.selectOption(courierId!);
@@ -54,7 +61,7 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
     await loginUi(page, ACCOUNTS.courier);
     await expect(page).toHaveURL(/\/courier/);
     for (const parcelId of [customerParcel.id, merchantParcel.parcelId]) {
-      await expect(page.getByRole("button", { name: new RegExp(`View parcel ${parcelId}`) })).toBeVisible();
+      await expect(page.getByLabel(new RegExp(`View parcel ${parcelId}`))).toBeVisible();
     }
   });
 
@@ -87,7 +94,8 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
   test("the courier delivers with a photo and the OTP", async ({ page, browser }) => {
     const messages = await mailpitSearch(customerParcel.trackingNo);
     const texts = await Promise.all(messages.map((m) => mailpitText(m.ID)));
-    const otp = texts.map((t) => t.match(/\b(\d{4})\b/)?.[1]).find(Boolean);
+    // "SwiftDrop: your delivery code for parcel SD-20261114-ABC123 is 4821. ..."
+    const otp = texts.map((t) => t.match(/delivery code for parcel \S+ is (\d{4})\b/i)?.[1]).find(Boolean);
     expect(otp, "a 4-digit OTP in the notification").toBeTruthy();
 
     await loginUi(page, ACCOUNTS.courier);
