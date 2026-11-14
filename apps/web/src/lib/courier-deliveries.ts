@@ -38,6 +38,19 @@ export const deliveryOtpSchema = z.object({
   recipientName: z.string().trim().min(1, "Enter the recipient’s name").max(120, "Keep the name under 120 characters"),
 });
 
+export const failureReasonSchema = z.enum(["RECIPIENT_UNAVAILABLE", "WRONG_ADDRESS", "REFUSED", "OTHER"]);
+
+export const failDeliverySchema = z
+  .object({
+    reasonCode: failureReasonSchema,
+    note: z.string().trim().max(500, "Keep the note under 500 characters"),
+  })
+  .superRefine((values, context) => {
+    if (values.reasonCode === "OTHER" && !values.note) {
+      context.addIssue({ code: "custom", path: ["note"], message: "Add a note when the reason is Other." });
+    }
+  });
+
 export const proofImageSchema = z
   .file()
   .max(5 * 1024 * 1024, "Photo must be 5 MB or smaller")
@@ -53,6 +66,8 @@ export type DeliveryDetails = z.infer<typeof deliveryDetailsSchema>;
 export type CourierUpdateStatus = z.infer<typeof courierUpdateStatusSchema>;
 export type StatusUpdateInput = z.infer<typeof statusUpdateSchema>;
 export type DeliveryOtpInput = z.infer<typeof deliveryOtpSchema>;
+export type FailureReason = z.infer<typeof failureReasonSchema>;
+export type FailDeliveryInput = z.infer<typeof failDeliverySchema>;
 
 const NEXT_COURIER_STATUSES: Record<DeliveryStatus, CourierUpdateStatus[]> = {
   CREATED: ["PICKED_UP"],

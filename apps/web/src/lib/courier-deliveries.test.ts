@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deliveryDetailsSchema,
   deliveryOtpSchema,
+  failDeliverySchema,
   nextCourierStatuses,
   proofImageSchema,
   proofUploadResponseSchema,
@@ -90,6 +91,25 @@ describe("courier delivery OTP validation", () => {
       expect(deliveryOtpSchema.safeParse({ otp, recipientName: "Nimal Perera" }).success).toBe(false);
     }
     expect(deliveryOtpSchema.safeParse({ otp: "1234", recipientName: "   " }).success).toBe(false);
+  });
+});
+
+describe("courier delivery failure validation", () => {
+  it("accepts each failure reason and trims an optional note", () => {
+    for (const reasonCode of ["RECIPIENT_UNAVAILABLE", "WRONG_ADDRESS", "REFUSED"] as const) {
+      expect(failDeliverySchema.parse({ reasonCode, note: "  " })).toEqual({ reasonCode, note: "" });
+    }
+    expect(failDeliverySchema.parse({ reasonCode: "OTHER", note: "  Gate was locked  " })).toEqual({
+      reasonCode: "OTHER",
+      note: "Gate was locked",
+    });
+  });
+
+  it("requires a note only for Other and limits notes to 500 characters", () => {
+    expect(failDeliverySchema.safeParse({ reasonCode: "OTHER", note: "   " }).success).toBe(false);
+    expect(failDeliverySchema.safeParse({ reasonCode: "WRONG_ADDRESS", note: "" }).success).toBe(true);
+    expect(failDeliverySchema.safeParse({ reasonCode: "REFUSED", note: "x".repeat(501) }).success).toBe(false);
+    expect(failDeliverySchema.safeParse({ reasonCode: "UNKNOWN", note: "" }).success).toBe(false);
   });
 });
 
