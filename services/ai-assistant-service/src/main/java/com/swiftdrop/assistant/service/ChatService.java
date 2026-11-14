@@ -1,9 +1,5 @@
 package com.swiftdrop.assistant.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.swiftdrop.assistant.domain.ChatMessage;
 import com.swiftdrop.assistant.domain.ChatSession;
 import com.swiftdrop.assistant.repository.ChatMessageRepository;
@@ -56,15 +52,13 @@ public class ChatService {
     private final ChatMessageRepository messages;
     private final LlmClient llm;
     private final ParcelTools tools;
-    private final ObjectMapper json;
 
     public ChatService(ChatSessionRepository sessions, ChatMessageRepository messages, LlmClient llm,
-                       ParcelTools tools, ObjectMapper json) {
+                       ParcelTools tools) {
         this.sessions = sessions;
         this.messages = messages;
         this.llm = llm;
         this.tools = tools;
-        this.json = json;
     }
 
     public Reply chat(UUID userId, String bearer, UUID sessionId, String message) {
@@ -89,55 +83,36 @@ public class ChatService {
     }
 
     private Turn converse(UUID sessionId, List<ChatMessage> history, String message, String bearer) {
-        ArrayNode conversation = json.createArrayNode();
+        List<ChatMessage> window = new ArrayList<>();
         for (ChatMessage m : history) {
-            if (conversation.isEmpty() && !ChatMessage.USER.equals(m.getRole())) {
+            if (window.isEmpty() && !ChatMessage.USER.equals(m.getRole())) {
                 continue; // the window may start on a reply; the conversation must start with the customer
             }
-            conversation.addObject().put("role", m.getRole()).put("content", m.getContent());
-        }
-        conversation.addObject().put("role", "user").put("content", message);
-
-        ArrayNode toolDefs = json.createArrayNode();
-        for (ParcelTools.Spec spec : tools.specs()) {
-            toolDefs.addObject().put("name", spec.name()).put("description", spec.description())
-                    .set("input_schema", spec.inputSchema());
+            window.add(m);
         }
 
         Set<String> used = new LinkedHashSet<>();
         List<ChatMessage> toolRows = new ArrayList<>();
         try {
+            LlmClient.Conversation conversation = llm.start(SYSTEM_PROMPT, window, message, tools.specs());
             for (int round = 0; round < MAX_TOOL_ROUNDS; round++) {
-                JsonNode response = llm.send(SYSTEM_PROMPT, conversation, toolDefs);
-                String stop = response.path("stop_reason").asText();
-                if ("refusal".equals(stop)) {
+                LlmClient.Step step = conversation.next();
+                if (step.refused()) {
+                    log.info("Chat turn refused by the model: stop={}", step.stop());
                     return new Turn(REFUSAL_REPLY, List.copyOf(used), toolRows);
                 }
-                if (!"tool_use".equals(stop)) {
-                    String text = text(response);
-                    log.info("Chat turn finished: stop={} tools={}", stop, used);
-                    return new Turn(text.isBlank() ? FALLBACK_REPLY : text, List.copyOf(used), toolRows);
+                if (step.calls().isEmpty()) {
+                    log.info("Chat turn finished: stop={} tools={}", step.stop(), used);
+                    return new Turn(step.text().isBlank() ? FALLBACK_REPLY : step.text(), List.copyOf(used), toolRows);
                 }
-                // The assistant turn goes back unchanged (thinking blocks included), then every tool result in one message.
-                conversation.addObject().put("role", "assistant").set("content", response.get("content"));
-                ArrayNode results = json.createArrayNode();
-                for (JsonNode block : response.path("content")) {
-                    if (!"tool_use".equals(block.path("type").asText())) {
-                        continue;
-                    }
-                    String name = block.path("name").asText();
-                    ParcelTools.Result result = tools.call(name, block.get("input"), bearer);
-                    used.add(name);
-                    toolRows.add(new ChatMessage(sessionId, ChatMessage.TOOL, result.text(), name));
-                    ObjectNode toolResult = results.addObject()
-                            .put("type", "tool_result")
-                            .put("tool_use_id", block.path("id").asText())
-                            .put("content", result.text());
-                    if (result.isError()) {
-                        toolResult.put("is_error", true);
-                    }
+                List<ParcelTools.Result> results = new ArrayList<>();
+                for (LlmClient.ToolCall call : step.calls()) {
+                    ParcelTools.Result result = tools.call(call.name(), call.input(), bearer);
+                    used.add(call.name());
+                    toolRows.add(new ChatMessage(sessionId, ChatMessage.TOOL, result.text(), call.name()));
+                    results.add(result);
                 }
-                conversation.addObject().put("role", "user").set("content", results);
+                conversation.answer(results);
             }
             log.warn("Chat turn hit the tool round limit: tools={}", used);
         } catch (HttpStatusCodeException e) {
@@ -146,15 +121,5 @@ public class ChatService {
             log.warn("LLM call failed: {}", e.getClass().getSimpleName());
         }
         return new Turn(FALLBACK_REPLY, List.copyOf(used), toolRows);
-    }
-
-    private static String text(JsonNode response) {
-        StringBuilder text = new StringBuilder();
-        for (JsonNode block : response.path("content")) {
-            if ("text".equals(block.path("type").asText())) {
-                text.append(block.path("text").asText());
-            }
-        }
-        return text.toString().trim();
     }
 }

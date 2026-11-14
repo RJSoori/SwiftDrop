@@ -40,7 +40,7 @@ public class ParcelTools {
     private static final Pattern TRACKING_NO = Pattern.compile("[A-Za-z0-9-]{4,40}");
     private static final int MAX_LISTED = 10;
 
-    /** City centres (lat, lng). The quote endpoint prices by weight and size today; coordinates are sent for zone pricing. */
+    /** City centres (lat, lng). parcel-service picks the zone pricing rule from these coordinates. */
     static final Map<String, double[]> CITIES = Map.ofEntries(
             Map.entry("Colombo", new double[]{6.9271, 79.8612}),
             Map.entry("Kandy", new double[]{7.2906, 80.6337}),
@@ -161,11 +161,16 @@ public class ParcelTools {
         if (!(weight > 0 && weight <= 100)) {
             return new Result("The weight must be more than 0 and at most 100 kg.", false);
         }
-        int[] box = SIZES.getOrDefault(args.path("size").asText("MEDIUM").toUpperCase(Locale.ROOT), SIZES.get("MEDIUM"));
+        String size = args.path("size").asText("MEDIUM").toUpperCase(Locale.ROOT);
+        if (!SIZES.containsKey(size)) {
+            size = "MEDIUM";
+        }
+        int[] box = SIZES.get(size);
 
         ObjectNode request = json.createObjectNode()
                 .put("weightKg", weight)
                 .put("lengthCm", box[0]).put("widthCm", box[1]).put("heightCm", box[2])
+                .put("size", size)
                 .put("pickupLat", CITIES.get(pickup)[0]).put("pickupLng", CITIES.get(pickup)[1])
                 .put("dropoffLat", CITIES.get(dropoff)[0]).put("dropoffLng", CITIES.get(dropoff)[1]);
         try {

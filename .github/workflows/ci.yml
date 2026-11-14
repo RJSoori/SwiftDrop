@@ -158,9 +158,6 @@ jobs:
     # Pinned: Playwright 1.56 cannot install Chromium on ubuntu-latest (26.04). Move up when Playwright supports it.
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # TEMPORARY: the suite reports the scenario gaps still open in dev (see the report), so a red E2E job
-    # does not block merges yet. Delete this line once all four scenarios pass.
-    continue-on-error: true
     env:
       COMPOSE_FILE: infra/compose/docker-compose.yml
     steps:

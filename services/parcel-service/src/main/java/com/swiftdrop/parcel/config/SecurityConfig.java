@@ -27,7 +27,6 @@ public class SecurityConfig {
     static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
             PATHS.matcher(HttpMethod.POST, "/api/v1/parcels/quote"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/quotes"),
-            PATHS.matcher(HttpMethod.GET, "/api/v1/parcels/track/**"),
             PATHS.matcher("/internal/**"),
             PATHS.matcher("/swagger-ui/**"),
             PATHS.matcher("/v3/api-docs/**"),
@@ -52,8 +51,8 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers(HttpMethod.POST, "/internal/v1/parcels").access(internalToken)
-                        .requestMatchers(HttpMethod.GET, "/internal/v1/parcels/*/access").access(internalToken)
+                        // Every internal endpoint (create, status, contact, access) needs the shared X-Internal-Token
+                        .requestMatchers("/internal/**").access(internalToken)
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 )

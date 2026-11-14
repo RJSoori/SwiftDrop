@@ -156,14 +156,14 @@ public class ParcelService {
 
         String trackingNo = generateUniqueTrackingNumber();
         UUID customerId = callerId;
-        UUID merchantId = request.merchantId();
 
+        // The public booking path is always a customer parcel. request.merchantId() is ignored on purpose:
+        // merchant parcels only come through POST /internal/v1/parcels, where merchant-service has checked the API key.
         Parcel parcel = new Parcel(
                 trackingNo, customerId, quote.actualWeightKg(), request.size(),
                 quote.feeLkr(), request.pickupAddress(), request.dropoffAddress()
         );
-        parcel.setOrigin(merchantId != null ? "MERCHANT" : "CUSTOMER");
-        parcel.setMerchantId(merchantId);
+        parcel.setOrigin("CUSTOMER");
         parcel.setPickupZoneId(quote.pickupZoneId() != null ? quote.pickupZoneId() : request.pickupZoneId());
         parcel.setDropoffZoneId(quote.dropoffZoneId() != null ? quote.dropoffZoneId() : request.dropoffZoneId());
         parcel.setPickupCity(request.pickupCity());
@@ -194,7 +194,7 @@ public class ParcelService {
                 "trackingNo", parcel.getTrackingNo(),
                 "origin", parcel.getOrigin(),
                 "occurredAt", parcel.getCreatedAt().toString(),
-                "merchantId", merchantId != null ? merchantId.toString() : "",
+                "merchantId", "",
                 "pickupCity", parcel.getPickupCity() != null ? parcel.getPickupCity() : "",
                 "dropoffCity", parcel.getDropoffCity() != null ? parcel.getDropoffCity() : "",
                 "pickupZoneId", parcel.getPickupZoneId() != null ? parcel.getPickupZoneId().toString() : "",

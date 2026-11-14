@@ -2,6 +2,9 @@ package com.swiftdrop.parcel.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.swiftdrop.parcel.domain.PricingStrategyType;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -10,10 +13,10 @@ import java.util.UUID;
  * default rates apply. {@code size} lets a zone's size multiplier apply to LARGE parcels.
  */
 public record QuoteRequest(
-        BigDecimal weightKg,
-        BigDecimal lengthCm,
-        BigDecimal widthCm,
-        BigDecimal heightCm,
+        @NotNull @Positive @DecimalMax("100") BigDecimal weightKg,
+        @Positive BigDecimal lengthCm,
+        @Positive BigDecimal widthCm,
+        @Positive BigDecimal heightCm,
         PricingStrategyType strategy,
         UUID pickupZoneId,
         UUID dropoffZoneId,
@@ -27,9 +30,6 @@ public record QuoteRequest(
     public QuoteRequest {
         if (strategy == null) {
             strategy = PricingStrategyType.WEIGHT_TIERED;
-        }
-        if (weightKg == null || weightKg.compareTo(BigDecimal.ZERO) <= 0) {
-            weightKg = BigDecimal.ONE;
         }
     }
 

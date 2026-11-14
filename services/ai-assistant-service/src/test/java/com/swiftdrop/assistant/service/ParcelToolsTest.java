@@ -105,7 +105,7 @@ class ParcelToolsTest {
         gateway.verify(postRequestedFor(urlEqualTo("/api/v1/quotes"))
                 .withHeader("Authorization", equalTo("Bearer customer-token"))
                 .withRequestBody(equalToJson("""
-                        {"weightKg":2.0,"lengthCm":50,"widthCm":40,"heightCm":35,
+                        {"weightKg":2.0,"lengthCm":50,"widthCm":40,"heightCm":35,"size":"LARGE",
                          "pickupLat":6.9271,"pickupLng":79.8612,"dropoffLat":7.2906,"dropoffLng":80.6337}""")));
     }
 
