@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api, ApiError } from "@/lib/api";
+import { useLiveUpdates } from "@/lib/realtime";
 
 type Parcel = {
   parcelId: string;
@@ -25,6 +26,7 @@ type Courier = {
 
 export default function DispatcherDashboard() {
   const queryClient = useQueryClient();
+  const liveUpdates = useLiveUpdates<unknown>(["/topic/dispatch"]);
   const [status, setStatus] = useState("");
   const [courierId, setCourierId] = useState("");
   const [page, setPage] = useState(0);
@@ -44,6 +46,13 @@ export default function DispatcherDashboard() {
     queryFn: () => api<Courier[]>("/dispatch/couriers/workloads"),
     refetchInterval: 10_000,
   });
+  useEffect(() => {
+    if (Object.keys(liveUpdates.data).length === 0) return;
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dispatch", "parcels"] }),
+      queryClient.invalidateQueries({ queryKey: ["dispatch", "workloads"] }),
+    ]);
+  }, [liveUpdates.data, queryClient]);
   const assign = useMutation({
     mutationFn: ({ parcelId, courierId }: { parcelId: string; courierId: string }) =>
       api(`/dispatch/parcels/${parcelId}/assign`, { method: "POST", json: { courierId } }),
