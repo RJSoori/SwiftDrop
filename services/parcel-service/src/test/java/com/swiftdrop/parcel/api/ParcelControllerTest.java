@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ParcelController.class)
+@WebMvcTest({ParcelController.class, QuoteController.class})
 @ImportAutoConfiguration({CommonSecurityAutoConfiguration.class, CommonWebAutoConfiguration.class})
 @Import(SecurityConfig.class)
 class ParcelControllerTest {
@@ -99,11 +99,7 @@ class ParcelControllerTest {
     @DisplayName("POST /api/v1/parcels - authenticated customer can create a parcel")
     void createParcel_authenticated() throws Exception {
         UUID customerId = UUID.randomUUID();
-        CreateParcelRequest request = new CreateParcelRequest(
-                "123 Galle Rd, Colombo", "45 Main St, Kandy", new BigDecimal("2.0"),
-                new BigDecimal("20.0"), new BigDecimal("15.0"), new BigDecimal("10.0"),
-                "MEDIUM", PricingStrategyType.WEIGHT_TIERED, null, null, null
-        );
+        CreateParcelRequest request = validBooking(new BigDecimal("2.0"));
 
         Parcel parcel = new Parcel(
                 "SD-20261107-ABC123", customerId, new BigDecimal("2.0"),
@@ -121,6 +117,47 @@ class ParcelControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.trackingNo").value("SD-20261107-ABC123"))
                 .andExpect(jsonPath("$.feeLkr").value(510.00));
+    }
+
+    private static CreateParcelRequest validBooking(BigDecimal weightKg) {
+        return new CreateParcelRequest("123 Galle Rd, Colombo", "45 Main St, Kandy", weightKg,
+                new BigDecimal("20.0"), new BigDecimal("15.0"), new BigDecimal("10.0"), "MEDIUM",
+                PricingStrategyType.WEIGHT_TIERED, null, null, null, "Colombo", null, null, "Kandy", null, null,
+                "Nimal Perera", "0771234567", "STANDARD");
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/parcels - an empty body or a bad weight is a 400 problem and nothing is booked")
+    void createParcel_invalidBodyIs400() throws Exception {
+        UUID customerId = UUID.randomUUID();
+        for (String body : List.of("{}",
+                objectMapper.writeValueAsString(validBooking(new BigDecimal("-5"))),
+                objectMapper.writeValueAsString(validBooking(new BigDecimal("101"))))) {
+            mvc.perform(post("/api/v1/parcels").with(as(customerId, "CUSTOMER"))
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(jsonPath("$.status").value(400));
+        }
+        mvc.perform(post("/api/v1/parcels").with(as(customerId, "CUSTOMER")).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pickupAddress\":\"a\",\"dropoffAddress\":\"b\",\"weightKg\":1,\"lengthCm\":-1,"
+                                + "\"recipientName\":\"n\",\"recipientPhone\":\"p\"}"))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verify(parcelService, org.mockito.Mockito.never()).createParcel(any(), any());
+    }
+
+    @Test
+    @DisplayName("Quotes on /api/v1/quotes and /api/v1/parcels/quote - an empty body or a negative weight is a 400 problem")
+    void quote_invalidBodyIs400() throws Exception {
+        for (String path : List.of("/api/v1/quotes", "/api/v1/parcels/quote")) {
+            for (String body : List.of("{}", "{\"weightKg\":-1}", "{\"weightKg\":2,\"widthCm\":0}")) {
+                mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body))
+                        .andExpect(status().isBadRequest())
+                        .andExpect(jsonPath("$.status").value(400));
+            }
+        }
+        org.mockito.Mockito.verify(parcelService, org.mockito.Mockito.never()).calculateQuote(any());
     }
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor as(UUID userId, String role) {

@@ -3,6 +3,7 @@ package com.swiftdrop.parcel.api;
 import com.swiftdrop.common.security.CurrentUser;
 import com.swiftdrop.parcel.dto.*;
 import com.swiftdrop.parcel.service.ParcelService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -27,7 +28,7 @@ public class ParcelController {
      * Public / authenticated fee quotation endpoint.
      */
     @PostMapping("/quote")
-    public ResponseEntity<QuoteResponse> calculateQuote(@RequestBody QuoteRequest request) {
+    public ResponseEntity<QuoteResponse> calculateQuote(@Valid @RequestBody QuoteRequest request) {
         QuoteResponse quote = parcelService.calculateQuote(request);
         return ResponseEntity.ok(quote);
     }
@@ -38,7 +39,7 @@ public class ParcelController {
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ParcelResponse> createParcel(
-            @RequestBody CreateParcelRequest request,
+            @Valid @RequestBody CreateParcelRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         UUID callerId = CurrentUser.id();
         ParcelResponse response = (idempotencyKey != null && !idempotencyKey.isBlank())
