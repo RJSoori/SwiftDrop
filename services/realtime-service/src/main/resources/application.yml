@@ -26,6 +26,10 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # A failed message is dead-lettered to realtime.q.dlq, never requeued in a loop.
+        default-requeue-rejected: false
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
