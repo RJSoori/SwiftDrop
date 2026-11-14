@@ -186,3 +186,53 @@ export type CreateParcelRequest = {
   dropoffZoneId?: string;
   merchantId?: string;
 };
+
+export type MerchantOrder = {
+  id: string;
+  merchantId: string;
+  parcelId: string;
+  trackingNo: string;
+  orderRef?: string;
+  status: string;
+  feeLkr: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MerchantOrderDetail = MerchantOrder & {
+  pickupAddress?: string;
+  pickupCity?: string;
+  dropoffAddress?: string;
+  dropoffCity?: string;
+  recipientName?: string;
+  weightKg?: number;
+  serviceType?: string;
+  history: {
+    fromStatus?: string;
+    toStatus: string;
+    note?: string;
+    occurredAt: string;
+  }[];
+};
+
+export type WebhookEndpoint = {
+  id: string;
+  merchantId: string;
+  url: string;
+  secret?: string;
+  active: boolean;
+  createdAt: string;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  merchantId: string;
+  eventId: string;
+  attempt: number;
+  state: "PENDING" | "DELIVERED" | "FAILED" | "DEAD";
+  statusCode?: number;
+  lastError?: string;
+  nextRetryAt?: string;
+  createdAt: string;
+  deliveredAt?: string;
+};
