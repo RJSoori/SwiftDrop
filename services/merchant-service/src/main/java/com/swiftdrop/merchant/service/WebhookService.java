@@ -88,6 +88,10 @@ public class WebhookService {
         this.retryDelaysMs = parseDelays(delaysConfig);
     }
 
+    HttpResponse<String> sendHttpRequest(HttpRequest request) throws Exception {
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
     private List<Long> parseDelays(String delaysConfig) {
         List<Long> list = new ArrayList<>();
         if (delaysConfig != null && !delaysConfig.isBlank()) {
@@ -301,7 +305,7 @@ public class WebhookService {
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendHttpRequest(request);
             int statusCode = response.statusCode();
             delivery.setStatusCode(statusCode);
 
