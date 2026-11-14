@@ -138,26 +138,26 @@ export default function MerchantIntegrations() {
         )}
       </section>
       <section className="max-w-3xl rounded-xl border bg-card p-6">
-        <h2 className="text-xl font-semibold">Webhook endpoint</h2>
+        <h2 className="text-xl font-semibold">Webhook callback</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          We sign each request with HMAC-SHA256. Save the signing secret on your
-          shop server. Saving a URL generates a new secret.
+          SwiftDrop signs every delivery event with your secret and sends it to
+          your endpoint. Your server must verify the signature.
         </p>
         {endpoint.isPending ? (
-          <p className="mt-4">Loading endpoint...</p>
+          <p className="mt-5">Loading webhook configuration...</p>
         ) : endpoint.isError ? (
-          <p className="mt-4 text-destructive" role="alert">
+          <p className="mt-5 text-destructive" role="alert">
             {endpoint.error.message}
           </p>
         ) : (
           <form
-            key={endpoint.data.updatedAt ?? "new"}
-            className="mt-4 space-y-3"
+            className="mt-5 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
               setSecret(null);
+              const data = new FormData(e.currentTarget);
               configure.mutate(
-                String(new FormData(e.currentTarget).get("url")),
+                String(data.get("url")),
               );
             }}
           >
