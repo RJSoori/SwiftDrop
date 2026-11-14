@@ -44,7 +44,6 @@ class MerchantIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired TestEvents events;
     @MockitoBean ParcelClient parcels;
-    @MockitoBean InternalParcelClient internalParcelClient;
     @MockitoBean WebhookTransport transport;
     UUID merchant, parcel;
     Instant created;
