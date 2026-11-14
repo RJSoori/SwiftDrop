@@ -94,11 +94,11 @@ function CourierDeliveryOtpForm() {
 
       <PageHeading title="Enter delivery OTP" intro="Confirm the recipient’s identity to complete this delivery." />
 
-      <Card className="mt-8 max-w-xl border-2 shadow-sm">
+      <Card className="mt-8 max-w-xl">
         <CardContent>
           {delivered ? (
             <div role="status" className="grid gap-3">
-              <p className="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-200">
+              <p className="flex items-center gap-2 font-semibold text-emerald-200">
                 <CircleCheck aria-hidden className="size-5" />
                 Delivered
               </p>
