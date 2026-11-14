@@ -116,7 +116,7 @@ async function main() {
 
   console.log(`\nCreated ${rows.length} parcels for customer@swiftdrop.test:`);
   console.table(rows);
-  console.log(`Track one without logging in: http://localhost:3000/?track=${rows[0].tracking}`);
+  console.log(`Track one without logging in: http://localhost:3000/track/${rows[0].tracking}`);
 }
 
 /**
