@@ -125,11 +125,27 @@ npm test
 
 GitHub Actions runs on every PR into `dev` or `main`, and again after the merge. It runs the Maven build with the coverage gate, the web checks, and a Docker image build with a Trivy vulnerability scan. A fixable CRITICAL vulnerability in one of our images fails the run. Accepted exceptions go in `.trivyignore`, each with a reason and an expiry date. Coverage and Trivy reports are attached to each run as artifacts, and a summary table appears on the run page.
 
+### End-to-end tests
+
+`e2e/` holds Playwright tests for the four demo scenarios, plus a 360 px phone check of the tracking page and the courier app. They run against the real compose stack, so start and seed it first:
+
+```bash
+./scripts/reset-demo.sh
+cd e2e
+npm ci
+npx playwright install chromium
+npx playwright test          # about 4 minutes; scenario 4 waits for webhook retries
+npx playwright show-report   # opens the HTML report
+```
+
+Each scenario is split into one test per step, so the report shows exactly which step works. CI runs the suite too and attaches the HTML report as `playwright-report`. For now a failing E2E job doesn't block merges (`continue-on-error` in `ci.yml`). Remove that once all four scenarios pass.
+
 ## Folder structure
 
 ```
 services/        Spring Boot services and common-lib (shared code)
 apps/web/        Next.js frontend
+e2e/             Playwright tests for the demo scenarios
 infra/compose/   docker-compose.yml and .env.example
 scripts/         dev-keys.sh, seed-demo.mjs, reset-demo.sh
 docs/            diagrams
