@@ -43,12 +43,15 @@ class CourierControllerTest {
     void returnsAssignedParcelDetails() throws Exception {
         UUID parcelId = UUID.randomUUID();
         when(courierService.deliveryDetails(parcelId)).thenReturn(
-                new CourierModels.DeliveryDetails(parcelId, "IN_TRANSIT", "Demo Recipient", "Campus"));
+                new CourierModels.DeliveryDetails(parcelId, "IN_TRANSIT", "Demo Recipient", "Campus",
+                        "12 Example Road", "Colombo"));
 
         mvc.perform(get("/api/v1/courier/deliveries/{parcelId}", parcelId).with(as("COURIER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.parcelId").value(parcelId.toString()))
-                .andExpect(jsonPath("$.recipientName").value("Demo Recipient"));
+                .andExpect(jsonPath("$.recipientName").value("Demo Recipient"))
+                .andExpect(jsonPath("$.dropoffAddress").value("12 Example Road"))
+                .andExpect(jsonPath("$.dropoffCity").value("Colombo"));
     }
 
     @Test

@@ -62,8 +62,19 @@ public class CourierConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(NotificationClient.class)
-    NotificationClient notificationClient() {
+    @ConditionalOnProperty(prefix = "swiftdrop.courier", name = "notification-client", havingValue = "stub")
+    NotificationClient stubNotificationClient() {
         return new StubNotificationClient();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(NotificationClient.class)
+    @ConditionalOnProperty(prefix = "swiftdrop.courier", name = "notification-client",
+            havingValue = "http", matchIfMissing = true)
+    NotificationClient httpNotificationClient(
+            @Value("${swiftdrop.courier.notification-service-url}") String baseUrl,
+            @Value("${INTERNAL_TOKEN:}") String internalToken) {
+        return new HttpNotificationClient(baseUrl, internalToken);
     }
 
     @Bean

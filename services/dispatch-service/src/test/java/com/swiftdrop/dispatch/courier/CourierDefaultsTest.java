@@ -1,7 +1,6 @@
 package com.swiftdrop.dispatch.courier;
 
 import com.swiftdrop.dispatch.courier.CourierModels.AssignedDelivery;
-import com.swiftdrop.dispatch.courier.CourierModels.NotificationReceipt;
 import com.swiftdrop.dispatch.courier.CourierModels.ParcelContact;
 import com.swiftdrop.dispatch.courier.CourierModels.StoredProof;
 import com.swiftdrop.dispatch.repository.AssignmentRepository;
@@ -29,7 +28,8 @@ class CourierDefaultsTest {
                     "swiftdrop.courier.proof-max-file-size=5MB",
                     "swiftdrop.courier.proof-bucket=proofs",
                     "swiftdrop.courier.proof-storage=stub",
-                    "swiftdrop.courier.parcel-service-url=http://localhost:8082");
+                    "swiftdrop.courier.parcel-service-url=http://localhost:8082",
+                    "swiftdrop.courier.notification-service-url=http://localhost:8085");
 
     @Test
     void configurationProvidesDefaultCourierAdaptersAndSharedBeans() {
@@ -51,9 +51,6 @@ class CourierDefaultsTest {
         assertEquals(CourierModels.DeliveryStatus.IN_TRANSIT,
                 parcels.updateStatus(UUID.randomUUID(), CourierModels.DeliveryStatus.IN_TRANSIT,
                         UUID.randomUUID(), null, null, null));
-
-        NotificationReceipt receipt = configuration.notificationClient().sendOtp(UUID.randomUUID(), "1234");
-        assertNotNull(receipt.id());
 
         ProofStorage storage = configuration.proofStorage("test-proofs");
         UUID parcelId = UUID.randomUUID();
@@ -93,6 +90,19 @@ class CourierDefaultsTest {
         courierContext.withPropertyValues("swiftdrop.courier.parcel-client=stub").run(context -> {
             assertTrue(context.getStartupFailure() == null);
             assertTrue(context.getBean(ParcelClient.class) instanceof StubParcelClient);
+        });
+    }
+
+    @Test
+    void realNotificationClientIsTheDefaultAndTheStubCanBeSelectedByProperty() {
+        courierContext.run(context -> {
+            assertTrue(context.getStartupFailure() == null);
+            assertTrue(context.getBean(NotificationClient.class) instanceof HttpNotificationClient);
+        });
+
+        courierContext.withPropertyValues("swiftdrop.courier.notification-client=stub").run(context -> {
+            assertTrue(context.getStartupFailure() == null);
+            assertTrue(context.getBean(NotificationClient.class) instanceof StubNotificationClient);
         });
     }
 }

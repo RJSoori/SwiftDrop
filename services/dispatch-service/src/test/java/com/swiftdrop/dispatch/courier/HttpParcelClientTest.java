@@ -83,12 +83,29 @@ class HttpParcelClientTest {
     void fetchesContactUsingInternalTokenAndMapsTheExactContactContract() {
         UUID parcelId = UUID.randomUUID();
         wireMock.stubFor(get(urlEqualTo("/internal/v1/parcels/" + parcelId + "/contact"))
-                .willReturn(okJson("{\"recipientName\":\"Recipient\",\"recipientPhone\":\"Recipient phone\"}")));
+                .willReturn(okJson("""
+                        {
+                          "recipientName": "Recipient",
+                          "recipientPhone": "Recipient phone",
+                          "dropoffAddress": "12 Example Road",
+                          "dropoffCity": "Colombo"
+                        }
+                        """)));
 
-        assertEquals(new ParcelContact("Recipient", "Recipient phone"), client.getContact(parcelId));
+        assertEquals(new ParcelContact("Recipient", "Recipient phone", "12 Example Road", "Colombo"),
+                client.getContact(parcelId));
 
         wireMock.verify(getRequestedFor(urlEqualTo("/internal/v1/parcels/" + parcelId + "/contact"))
                 .withHeader("X-Internal-Token", equalTo("test-internal-token")));
+    }
+
+    @Test
+    void acceptsContactResponsesWithoutOptionalDropoffFields() {
+        UUID parcelId = UUID.randomUUID();
+        wireMock.stubFor(get(urlEqualTo("/internal/v1/parcels/" + parcelId + "/contact"))
+                .willReturn(okJson("{\"recipientName\":\"Recipient\",\"recipientPhone\":\"Recipient phone\"}")));
+
+        assertEquals(new ParcelContact("Recipient", "Recipient phone", null, null), client.getContact(parcelId));
     }
 
     @Test
