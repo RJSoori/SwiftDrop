@@ -29,7 +29,7 @@ public class TrackingService {
     public TrackingView getTracking(String trackingNo) {
         TrackingRecord record = trackingViewRepository.findByTrackingNo(trackingNo)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tracking number not found"));
-        return new TrackingView(record.trackingNo(), record.parcelId(), record.currentStatus(), record.pickupCity(),
+        return new TrackingView(record.trackingNo(), record.currentStatus(), record.pickupCity(),
                 record.dropoffCity(), readTimeline(record.timelineJson()), record.updatedAt());
     }
 
