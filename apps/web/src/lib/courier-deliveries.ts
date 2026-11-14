@@ -26,6 +26,8 @@ export const deliveryDetailsSchema = z.object({
   status: deliverySummarySchema.shape.status,
   recipientName: z.string().min(1),
   recipientPhone: z.string(),
+  dropoffAddress: z.string().optional(),
+  dropoffCity: z.string().optional(),
 });
 
 export const statusUpdateSchema = z.object({

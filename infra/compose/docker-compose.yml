@@ -149,7 +149,8 @@ services:
       DB_USERNAME: dispatch_svc
       DB_PASSWORD: ${DISPATCH_DB_PASSWORD}
       PARCEL_SERVICE_URL: ${PARCEL_SERVICE_URL:-http://parcel-service:8082}
-      NOTIFICATION_SERVICE_URL: http://notification-service:8085
+      COURIER_NOTIFICATION_CLIENT: ${COURIER_NOTIFICATION_CLIENT:-http}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8085}
       # Proof photos (M9). Local dev uses the MinIO root login; production would use a scoped key.
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-swiftdrop}

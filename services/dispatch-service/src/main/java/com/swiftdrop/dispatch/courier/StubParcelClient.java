@@ -9,7 +9,7 @@ public class StubParcelClient implements ParcelClient {
 
     @Override
     public ParcelContact getContact(UUID parcelId) {
-        return new ParcelContact("Demo Recipient", "");
+        return new ParcelContact("Demo Recipient", "", null, null);
     }
 
     @Override

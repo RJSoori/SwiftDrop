@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Camera, CircleCheck, CircleX, PencilLine, Phone, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, CircleCheck, CircleX, MapPin, PencilLine, Phone, UserRound } from "lucide-react";
 import { FormError } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,11 @@ export default function CourierParcelDetailPage() {
   const { parcelId } = useParams<{ parcelId: string }>();
   const router = useRouter();
   const delivery = useDeliveryDetails(parcelId);
+  const dropoffAddress = delivery.data
+    ? [delivery.data.dropoffAddress, delivery.data.dropoffCity]
+        .filter((part): part is string => Boolean(part?.trim()))
+        .join(", ")
+    : "";
 
   return (
     <div className="max-w-3xl">
@@ -84,6 +89,15 @@ export default function CourierParcelDetailPage() {
                     <dd className="mt-1 break-words font-medium">{delivery.data.recipientPhone}</dd>
                   </div>
                 </div>
+                {dropoffAddress ? (
+                  <div className="flex min-w-0 gap-3">
+                    <MapPin aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <dt className="text-sm text-muted-foreground">Drop-off address</dt>
+                      <dd className="mt-1 break-words font-medium">{dropoffAddress}</dd>
+                    </div>
+                  </div>
+                ) : null}
               </dl>
             </CardContent>
           </Card>
