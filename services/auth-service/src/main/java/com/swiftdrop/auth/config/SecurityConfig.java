@@ -100,10 +100,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
                                                    ProblemDetailAuthHandler authHandler,
+                                                   InternalTokenAuthorizationManager internalToken,
                                                    OAuth2AuthorizationRequestResolver pkceResolver,
                                                    EncryptedCookieAuthorizationRequestRepository authRequestCookie,
-                                                   GoogleLoginHandlers googleLogin,
-                                                   InternalTokenAuthorizationManager internalToken) throws Exception {
+                                                   GoogleLoginHandlers googleLogin) throws Exception {
         // CSRF is off: stateless API, and the auth cookies are SameSite=Lax so other sites cannot POST with them.
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
