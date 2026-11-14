@@ -96,7 +96,7 @@ export default function CourierPhotoProofPage() {
 
       <PageHeading title="Photo proof" intro="Take or choose a clear JPEG or PNG photo for this delivery." />
 
-      <Card className="mt-8 max-w-xl border-2 shadow-sm">
+      <Card className="mt-8 max-w-xl">
         <CardContent className="grid gap-5">
           <div>
             <p className="text-sm text-muted-foreground">Parcel</p>
@@ -154,7 +154,7 @@ export default function CourierPhotoProofPage() {
 
           {proofId && (
             <div role="status" className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-sm">
-              <p className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-200">
+              <p className="flex items-center gap-2 font-medium text-emerald-200">
                 <Check aria-hidden className="size-4" />
                 Photo proof uploaded.
               </p>

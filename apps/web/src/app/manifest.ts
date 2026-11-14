@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/courier",
     scope: "/",
     display: "standalone",
-    background_color: "#f6f7fb",
-    theme_color: "#2f3bd1",
+    background_color: "#0f1226",
+    theme_color: "#0f1226",
     icons: [
       {
         src: "/icons/courier-192.svg",

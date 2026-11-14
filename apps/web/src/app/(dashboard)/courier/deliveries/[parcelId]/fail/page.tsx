@@ -95,11 +95,11 @@ export default function CourierDeliveryFailedPage() {
 
       <PageHeading title="Delivery failed" intro="Record why this parcel could not be delivered." />
 
-      <Card className="mt-8 max-w-xl border-2 shadow-sm">
+      <Card className="mt-8 max-w-xl">
         <CardContent>
           {markedFailed ? (
             <div role="status" className="grid gap-3">
-              <p className="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-200">
+              <p className="flex items-center gap-2 font-semibold text-emerald-200">
                 <CircleCheck aria-hidden className="size-5" />
                 Marked as failed
               </p>

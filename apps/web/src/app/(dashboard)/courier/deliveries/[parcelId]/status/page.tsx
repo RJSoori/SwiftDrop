@@ -152,7 +152,7 @@ function StatusUpdateForm({
   });
 
   return (
-    <Card className="mt-8 max-w-xl border-2 shadow-sm">
+    <Card className="mt-8 max-w-xl">
       <CardContent>
         <form onSubmit={submit} className="grid gap-5">
           <div className="grid gap-1">

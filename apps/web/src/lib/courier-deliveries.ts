@@ -25,7 +25,7 @@ export const deliveryDetailsSchema = z.object({
   parcelId: z.uuid(),
   status: deliverySummarySchema.shape.status,
   recipientName: z.string().min(1),
-  dropOffAddress: z.string().min(1),
+  recipientPhone: z.string(),
 });
 
 export const statusUpdateSchema = z.object({
