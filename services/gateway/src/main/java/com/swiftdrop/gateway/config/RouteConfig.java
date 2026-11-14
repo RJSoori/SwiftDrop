@@ -35,7 +35,8 @@ public class RouteConfig {
         return builder.routes()
                 // Checked first: credential endpoints get a per-IP rate limit.
                 .route("auth-rate-limited", r -> r.order(-1)
-                        .path("/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/signup/**", "/api/v1/auth/refresh")
+                        .path("/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/signup/**", "/api/v1/auth/refresh",
+                                "/api/v1/auth/oauth/token")
                         .filters(f -> f.requestRateLimiter(c -> c.setRateLimiter(authRateLimiter).setKeyResolver(clientIpKeyResolver)))
                         .uri(auth))
                 .route("auth", r -> r.path("/api/v1/auth/**", "/.well-known/**").uri(auth))
