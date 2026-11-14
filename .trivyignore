@@ -1,0 +1,16 @@
+# Vulnerabilities the CI Trivy scan may skip. Every entry needs a reason and an expiry date (exp:);
+# after that date Trivy reports it again and CI fails, so the decision gets revisited.
+#
+# Spring Framework 6.2.19 (from Spring Boot 3.5.16). The fix exists only in Spring Framework 7 (Spring Boot 4),
+# which means migrating every service. None of these apply to SwiftDrop: we use none of the affected features
+# (checked 2026-11-13 by searching services/*/src/main).
+
+# RCE/SSRF via XsltView with a "/**" view-rendering mapping. We render no views; all controllers return JSON.
+CVE-2026-47884 exp:2027-01-31
+
+# SSE stream corruption with view fragments (FragmentsRendering). We use no view fragments.
+CVE-2026-47890 exp:2027-01-31
+
+# Header predicate bypass in WebFlux functional endpoints deployed on DispatcherServlet. We use no RouterFunction
+# endpoints; the WebFlux gateway runs on Netty with Spring Cloud Gateway routes.
+CVE-2026-47892 exp:2027-01-31
