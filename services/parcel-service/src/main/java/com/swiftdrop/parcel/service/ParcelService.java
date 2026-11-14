@@ -310,7 +310,9 @@ public class ParcelService {
         }
 
         parcel.setCurrentStatus(target);
-        parcel = parcelRepository.save(parcel);
+        // Flush now so @Version is incremented before the event reads it. With save() alone the first change after
+        // booking went out as aggregateVersion 0, equal to the booking, and realtime-service dropped it as stale.
+        parcel = parcelRepository.saveAndFlush(parcel);
 
         ParcelStatusHistory history = new ParcelStatusHistory(
                 parcel.getId(), current, target, request.actorId(),
@@ -347,7 +349,9 @@ public class ParcelService {
                 parcel.getRecipientName() != null ? parcel.getRecipientName() : "Customer",
                 parcel.getRecipientPhone() != null ? parcel.getRecipientPhone() : "",
                 parcel.getDropoffAddress(),
-                parcel.getDropoffCity()
+                parcel.getDropoffCity(),
+                parcel.getTrackingNo(),
+                parcel.getCustomerId()
         );
     }
 

@@ -1,19 +1,24 @@
 #!/usr/bin/env node
-// Seeds demo parcels through the gateway, using the demo accounts auth-service creates on startup
+// Seeds demo data through the gateway, using the demo accounts auth-service creates on startup
 // (SEED_DEMO_DATA=true). Going through the real APIs keeps fees, history and outbox events consistent.
+//  - the demo merchant's API key and webhook to the Demo Store (saved to infra/compose/.env)
+//  - parcels in every status for the demo customer
+// Zones and prices come from parcel-service's migrations; courier profiles from dispatch-service's.
 //
 //   node scripts/seed-demo.mjs            # needs the stack up (docker compose up -d --wait)
 //   GATEWAY_URL=http://host:8080 node scripts/seed-demo.mjs
 //
 // Skips if the demo customer already has parcels; run scripts/reset-demo.sh for a clean slate.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GATEWAY = process.env.GATEWAY_URL ?? "http://localhost:8080";
 const PASSWORD = process.env.SEED_PASSWORD ?? readEnvFile().SEED_PASSWORD;
+// The address merchant-service calls inside the compose network (allowed by WEBHOOK_ALLOWED_LOCAL_HOSTS).
+const DEMO_STORE_WEBHOOK_URL = "http://demo-store:4000/webhooks/swiftdrop";
 
 // Zones seeded by parcel-service V2__parcel_schema.sql
 const ZONES = {
@@ -63,9 +68,11 @@ async function main() {
     courier2: await login("courier2@swiftdrop.test"),
   };
 
+  await seedMerchantIntegration(await login("merchant@swiftdrop.test"));
+
   const existing = await api(customer, "GET", "/api/v1/parcels/mine");
   if (existing.length > 0) {
-    console.log(`The demo customer already has ${existing.length} parcels; nothing to do.`);
+    console.log(`The demo customer already has ${existing.length} parcels; no new parcels.`);
     console.log("For a clean slate run ./scripts/reset-demo.sh");
     return;
   }
@@ -93,21 +100,73 @@ async function main() {
     }, { "Idempotency-Key": `seed-demo-${i + 1}` });
 
     if (p.courier) {
-      parcel = await api(dispatcher, "PATCH", `/api/v1/parcels/${parcel.id}/assign`, { courierId: couriers[p.courier].id });
+      // Assign the way the dispatcher desk does, through dispatch-service. It learns about the parcel from
+      // the parcel.created event, so retry briefly until it has.
+      await retry(() => api(dispatcher, "POST", `/api/v1/dispatch/parcels/${parcel.id}/assign`, { courierId: couriers[p.courier].id }));
     }
     for (const status of p.path) {
-      parcel = await api(dispatcher, "PATCH", `/api/v1/parcels/${parcel.id}/status`, {
+      // Retried: parcel-service applies the parcel.assigned event at the same moment, and two updates to one
+      // parcel within milliseconds can collide on its optimistic lock.
+      parcel = await retry(() => api(dispatcher, "PATCH", `/api/v1/parcels/${parcel.id}/status`, {
         status,
         note: NOTES[status],
         failureReason: status === "FAILED" ? "Recipient not at home" : null,
-      });
+      }));
     }
     rows.push({ tracking: parcel.trackingNo, status: parcel.currentStatus, route: `${from.city} -> ${to.city}`, courier: p.courier ?? "-" });
   }
 
   console.log(`\nCreated ${rows.length} parcels for customer@swiftdrop.test:`);
   console.table(rows);
-  console.log(`Track one without logging in: http://localhost:3000/?track=${rows[0].tracking}`);
+  console.log(`Track one without logging in: http://localhost:3000/track/${rows[0].tracking}`);
+}
+
+/**
+ * Gives the approved demo merchant an API key and a webhook pointing at the Demo Store, and writes both
+ * secrets into infra/compose/.env (DEMO_STORE_API_KEY, DEMO_STORE_WEBHOOK_SECRET). Keeps the existing pair
+ * when the key in .env still belongs to an active key, so re-running does not invalidate a running Demo Store.
+ * Returns true when .env changed; the Demo Store container must then be recreated to pick the values up.
+ */
+async function seedMerchantIntegration(merchant) {
+  const env = readEnvFile();
+  const keys = await api(merchant, "GET", "/api/v1/auth/merchant/api-keys");
+  const current = env.DEMO_STORE_API_KEY ?? "";
+  const keyStillActive = keys.some((k) => !k.revokedAt && current.startsWith(k.prefix));
+  const webhook = await api(merchant, "GET", "/api/v1/merchant/webhook").catch(() => null);
+  if (keyStillActive && env.DEMO_STORE_WEBHOOK_SECRET && webhook?.url === DEMO_STORE_WEBHOOK_URL) {
+    console.log("Demo merchant already has an API key and a webhook to the Demo Store.");
+    return false;
+  }
+  const key = await api(merchant, "POST", "/api/v1/auth/merchant/api-keys");
+  const endpoint = await api(merchant, "PUT", "/api/v1/merchant/webhook", { url: DEMO_STORE_WEBHOOK_URL });
+  writeEnvValues({ DEMO_STORE_API_KEY: key.apiKey, DEMO_STORE_WEBHOOK_SECRET: endpoint.secret });
+  console.log(`Created merchant API key ${key.prefix}... and webhook ${DEMO_STORE_WEBHOOK_URL}`);
+  console.log("Saved both to infra/compose/.env. Recreate the Demo Store to use them:");
+  console.log("  docker compose -f infra/compose/docker-compose.yml up -d demo-store");
+  return true;
+}
+
+/** Replaces KEY=... lines in infra/compose/.env (appending missing keys), leaving everything else as it is. */
+function writeEnvValues(values) {
+  const file = join(ROOT, "infra/compose/.env");
+  let text = readFileSync(file, "utf8");
+  for (const [key, value] of Object.entries(values)) {
+    const line = new RegExp(`^${key}=.*$`, "m");
+    text = line.test(text) ? text.replace(line, `${key}=${value}`) : `${text.replace(/\s*$/, "")}\n${key}=${value}\n`;
+  }
+  writeFileSync(file, text);
+}
+
+/** Calls fn until it succeeds, for up to ~20 seconds (events between services take a moment). */
+async function retry(fn, attempts = 20) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i >= attempts) throw err;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
 }
 
 /** Logs in and returns the user's id plus the access token from the sd_access cookie. */

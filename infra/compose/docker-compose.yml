@@ -46,7 +46,9 @@ services:
       - ./postgres/20-swiftdrop-schemas.sh:/docker-entrypoint-initdb.d/20-swiftdrop-schemas.sh:ro
     ports: ["5432:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # -h 127.0.0.1: check over TCP like the services do. During first-time init Postgres runs a temporary
+      # server on the Unix socket only, so a socket check reports ready too early and services crash on startup.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
