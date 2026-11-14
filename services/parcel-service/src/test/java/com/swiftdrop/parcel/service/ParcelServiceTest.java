@@ -135,6 +135,32 @@ class ParcelServiceTest {
     }
 
     @Test
+    @DisplayName("createParcel ignores a merchantId in the customer's body: the parcel stays a customer parcel")
+    void createParcel_ignoresMerchantIdFromTheBody() {
+        UUID customerId = UUID.randomUUID();
+        UUID someMerchant = UUID.randomUUID();
+        CreateParcelRequest request = new CreateParcelRequest(
+                "123 Galle Rd, Colombo 03", "45 Peradeniya Rd, Kandy", new BigDecimal("2.5"),
+                null, null, null, "MEDIUM", PricingStrategyType.WEIGHT_TIERED, null, null, someMerchant);
+        when(parcelRepository.save(any(Parcel.class))).thenAnswer(inv -> {
+            Parcel p = inv.getArgument(0);
+            p.setId(UUID.randomUUID());
+            return p;
+        });
+
+        parcelService.createParcel(request, customerId);
+
+        ArgumentCaptor<Parcel> saved = ArgumentCaptor.forClass(Parcel.class);
+        verify(parcelRepository).save(saved.capture());
+        assertThat(saved.getValue().getOrigin()).isEqualTo("CUSTOMER");
+        assertThat(saved.getValue().getMerchantId()).isNull();
+        assertThat(saved.getValue().getCustomerId()).isEqualTo(customerId);
+        ArgumentCaptor<OutboxEvent> outbox = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(outbox.capture());
+        assertThat(outbox.getValue().getPayload()).doesNotContain(someMerchant.toString()).contains("CUSTOMER");
+    }
+
+    @Test
     @DisplayName("createParcel with existing Idempotency-Key returns cached response without duplicate creation")
     void createParcel_idempotencyHit() throws Exception {
         UUID customerId = UUID.randomUUID();

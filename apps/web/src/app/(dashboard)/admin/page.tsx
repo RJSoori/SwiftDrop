@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { PageHeading, ServiceAccess } from "@/components/dashboard";
+import { PageHeading } from "@/components/dashboard";
 import { buttonVariants } from "@/components/ui/button";
 import { api, type MerchantApplication } from "@/lib/api";
 import { todayInColombo } from "@/lib/dates";
@@ -57,7 +57,6 @@ export default function AdminDashboard() {
           Review applications
         </Link>
       </div>
-      <ServiceAccess />
     </>
   );
 }

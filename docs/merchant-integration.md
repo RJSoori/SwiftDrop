@@ -1,6 +1,6 @@
-# Member 5: merchant integration
+# Merchant integration
 
-The implementation is on feat/m5-merchant-integration. It covers merchant orders, API keys, signed callbacks, the merchant workspace, and the Demo Store. Authentication and parcel changes are limited to the contracts required by this feature.
+This feature is merged into dev. It covers merchant orders, API keys, signed callbacks, the merchant workspace, and the Demo Store. Authentication and parcel changes are limited to the contracts required by this feature.
 
 ## Start and try it
 
@@ -56,7 +56,7 @@ Status events that arrive before the local merchant order exists are retained in
 
 ## Event-bus integration handoff
 
-The shared OutboxRelay on dev still publishes flat payloads without stable envelope IDs or broker confirms. ParcelOutboxRelay is a parcel-service-only adapter using the existing extension point: it publishes the agreed envelope, takes eventId from the durable outbox row, uses persistent messages, and only returns after a successful routing and publisher confirmation. The shared relay is untouched. Coordinate with the event-bus owner to remove this adapter once the shared implementation supplies the same guarantees.
+The shared OutboxRelay sends each outbox row's payload as it is stored, without broker confirms. dispatch-service and auth-service now store the full event envelope in the row, so their events carry a stable eventId. ParcelOutboxRelay is a parcel-service-only adapter using the existing extension point: it publishes the agreed envelope, takes eventId from the durable outbox row, uses persistent messages, and only returns after a successful routing and publisher confirmation. The shared relay is untouched. Coordinate with the event-bus owner to remove this adapter once the shared implementation supplies the same guarantees.
 
 ## Webhook protocol and retries
 
@@ -85,6 +85,6 @@ Public endpoints must use HTTPS. Private HTTP is allowed only for hostnames expl
 - Backend: mvn -pl services/merchant-service,services/auth-service,services/parcel-service -am test. Existing auth integration tests require Docker.
 - MerchantIntegrationTest uses the shared PostGIS, Redis and RabbitMQ containers. It covers sequential and concurrent duplicate requests, merchant isolation, real event consumption, retry exhaustion, confirmed dead letters, and replay. It is skipped explicitly when Docker is unavailable.
 
-The merchant dashboard and order history refresh every 10 seconds; delivery logs refresh every 5 seconds. The shared realtime hook and SSE endpoint are not implemented on the checked-out dev branch, so these pages use polling until that integration is available.
+The merchant order page refreshes every 10 seconds and the webhook delivery log every 5 seconds. The realtime SSE stream and the WebSocket hook now exist, but these merchant pages still poll.
 
 Update the assignment report's merchant use cases and merchant-order sequence to match these routes, duplicate protection and webhook retry behaviour. Capture real screenshots after running the Compose demonstration.

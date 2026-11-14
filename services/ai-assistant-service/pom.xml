@@ -48,7 +48,7 @@
             <artifactId>test-support</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- plays the Anthropic API and the gateway in tests -->
+        <!-- plays the LLM provider and the gateway in tests -->
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>

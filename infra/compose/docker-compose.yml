@@ -235,8 +235,9 @@ services:
       DB_USERNAME: ai_svc
       DB_PASSWORD: ${AI_DB_PASSWORD}
       GATEWAY_URL: http://gateway:8080 # tools call our API with the customer's own JWT (M1)
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
+      LLM_MODEL: ${LLM_MODEL:-}
     depends_on:
       postgres: { condition: service_healthy }
 
