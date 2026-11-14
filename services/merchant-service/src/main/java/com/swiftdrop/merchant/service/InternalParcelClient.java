@@ -5,7 +5,7 @@ import com.swiftdrop.merchant.dto.CreateMerchantOrderRequest;
 import com.swiftdrop.merchant.dto.MerchantOrderDetailResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -25,28 +25,19 @@ public class InternalParcelClient {
     private final RestClient internalClient;
     private final RestClient publicClient;
 
-    @Autowired
     public InternalParcelClient(
             @Value("${PARCEL_SERVICE_URL:http://localhost:8082}") String parcelServiceUrl,
-            @Value("${INTERNAL_TOKEN:}") String internalToken,
-            @Autowired(required = false) InternalTokenInterceptor tokenInterceptor) {
+            ObjectProvider<InternalTokenInterceptor> tokenInterceptor) {
         var builder = RestClient.builder().baseUrl(parcelServiceUrl);
-        if (tokenInterceptor != null) {
-            builder.requestInterceptor(tokenInterceptor);
-        } else if (internalToken != null && !internalToken.isBlank()) {
-            builder.requestInterceptor(new InternalTokenInterceptor(internalToken));
+        var interceptor = (tokenInterceptor != null) ? tokenInterceptor.getIfAvailable() : null;
+        if (interceptor != null) {
+            builder.requestInterceptor(interceptor);
         }
         this.internalClient = builder.build();
 
         this.publicClient = RestClient.builder()
                 .baseUrl(parcelServiceUrl)
                 .build();
-    }
-
-    public InternalParcelClient(
-            String parcelServiceUrl,
-            InternalTokenInterceptor tokenInterceptor) {
-        this(parcelServiceUrl, "", tokenInterceptor);
     }
 
     public record ParcelCreatedResult(
