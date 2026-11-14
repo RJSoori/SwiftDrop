@@ -1,7 +1,7 @@
 package com.swiftdrop.dispatch.courier;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,25 +25,25 @@ public class CourierConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(AssignmentLookup.class)
+    @ConditionalOnProperty(name = "swiftdrop.courier.stubs", havingValue = "true", matchIfMissing = true)
     AssignmentLookup assignmentLookup() {
         return new StubAssignmentLookup();
     }
 
     @Bean
-    @ConditionalOnMissingBean(ParcelClient.class)
+    @ConditionalOnProperty(name = "swiftdrop.courier.stubs", havingValue = "true", matchIfMissing = true)
     ParcelClient parcelClient() {
         return new StubParcelClient();
     }
 
     @Bean
-    @ConditionalOnMissingBean(NotificationClient.class)
+    @ConditionalOnProperty(name = "swiftdrop.courier.stubs", havingValue = "true", matchIfMissing = true)
     NotificationClient notificationClient() {
         return new StubNotificationClient();
     }
 
     @Bean
-    @ConditionalOnMissingBean(ProofStorage.class)
+    @ConditionalOnProperty(name = "swiftdrop.courier.stubs", havingValue = "true", matchIfMissing = true)
     ProofStorage proofStorage(@Value("${swiftdrop.courier.proof-bucket}") String bucket) {
         return new StubProofStorage(bucket);
     }

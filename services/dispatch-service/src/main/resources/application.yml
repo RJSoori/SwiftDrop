@@ -43,6 +43,9 @@ swiftdrop:
     otp-max-attempts: ${COURIER_OTP_MAX_ATTEMPTS:5}
     proof-max-file-size: ${COURIER_PROOF_MAX_FILE_SIZE:5MB}
     proof-bucket: ${COURIER_PROOF_BUCKET:proofs}
+    # true: in-memory stubs (unit tests, running alone). Compose sets false to use parcel-service,
+    # notification-service and MinIO (see LiveCourierConfiguration).
+    stubs: ${COURIER_STUBS:true}
 
 management:
   endpoints:

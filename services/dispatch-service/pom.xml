@@ -14,11 +14,6 @@
     <artifactId>dispatch-service</artifactId>
     <description>Dispatcher queue and courier workload service</description>
 
-    <properties>
-        <!-- TEMPORARY: below the 70% team gate while this service is in progress. CI still fails if coverage
-             drops under this. Raise it, then delete this override, before the final submission. -->
-        <coverage.minimum>0.55</coverage.minimum>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -32,6 +27,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <!-- Stores courier proof photos in MinIO (LiveCourierConfiguration) -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.6.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
