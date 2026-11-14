@@ -162,8 +162,13 @@ export async function openTracking(page: Page, trackingNo: string) {
 
 /** Courier app: moves an assigned parcel to the next status on the Update status screen. */
 export async function courierSetStatus(page: Page, parcelId: string, toStatus: string) {
-  await page.goto(`/courier/deliveries/${parcelId}`);
-  await page.getByRole("button", { name: "Update status" }).click();
+  // dispatch-service learns the previous status from parcel-service's event a moment later, so until then the
+  // screen still offers the old next step. Reopen it until this step is offered, as a courier would.
+  await expect(async () => {
+    await page.goto(`/courier/deliveries/${parcelId}`);
+    await page.getByRole("button", { name: "Update status" }).click();
+    await expect(page.getByLabel("Next status").locator(`option[value="${toStatus}"]`)).toHaveCount(1, { timeout: 2_000 });
+  }, `the courier can choose ${toStatus}`).toPass({ timeout: 20_000 });
   await page.getByLabel("Next status").selectOption(toStatus);
   await page.getByRole("button", { name: "Save status" }).click();
   await expect(page).toHaveURL(new RegExp(`/courier/deliveries/${parcelId}$`));

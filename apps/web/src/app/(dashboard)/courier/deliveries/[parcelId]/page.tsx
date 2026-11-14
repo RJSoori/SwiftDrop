@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Camera, CircleCheck, CircleX, MapPin, PencilLine, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, CircleCheck, CircleX, PencilLine, Phone, UserRound } from "lucide-react";
 import { FormError } from "@/components/form-field";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ export default function CourierParcelDetailPage() {
         </div>
       ) : (
         <>
-          <Card aria-label="Parcel information" className="mt-8 max-w-3xl border-2 shadow-sm">
+          <Card aria-label="Parcel information" className="mt-8 max-w-3xl">
             <CardContent className="grid gap-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
@@ -78,10 +78,10 @@ export default function CourierParcelDetailPage() {
                   </div>
                 </div>
                 <div className="flex min-w-0 gap-3">
-                  <MapPin aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                  <Phone aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <dt className="text-sm text-muted-foreground">Drop-off address</dt>
-                    <dd className="mt-1 break-words font-medium">{delivery.data.dropOffAddress}</dd>
+                    <dt className="text-sm text-muted-foreground">Recipient phone</dt>
+                    <dd className="mt-1 break-words font-medium">{delivery.data.recipientPhone}</dd>
                   </div>
                 </div>
               </dl>
