@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * Service-to-service internal REST endpoints according to Section 4 contracts.
@@ -54,5 +55,12 @@ public class InternalParcelController {
     public ResponseEntity<RecipientContactResponse> getRecipientContact(@PathVariable UUID id) {
         RecipientContactResponse contact = parcelService.getRecipientContact(id);
         return ResponseEntity.ok(contact);
+    }
+
+    @GetMapping("/{id}/access")
+    public ResponseEntity<Boolean> checkParcelAccess(@PathVariable UUID id,
+                                                     @RequestParam UUID userId,
+                                                     @RequestParam String role) {
+        return ResponseEntity.ok(parcelService.canAccessParcel(id, userId, role));
     }
 }
