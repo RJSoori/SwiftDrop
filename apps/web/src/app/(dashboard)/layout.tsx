@@ -37,7 +37,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const nav = role ? NAV[role] : [];
 
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[16rem_1fr]">
+    <div
+      className={`min-h-dvh md:grid md:grid-cols-[16rem_1fr] ${
+        role === "COURIER" ? "courier-workspace bg-background text-foreground" : ""
+      }`}
+    >
       <aside className="bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:h-dvh">
         <div className="flex items-center justify-between gap-4 px-5 py-4 md:block md:py-6">
           <Brand href={role ? nav[0].href : "/"} />

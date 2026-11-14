@@ -9,11 +9,12 @@ public class StubParcelClient implements ParcelClient {
 
     @Override
     public ParcelContact getContact(UUID parcelId) {
-        return new ParcelContact("Demo Recipient", "100 University Avenue, Campus");
+        return new ParcelContact("Demo Recipient", "");
     }
 
     @Override
-    public DeliveryStatus updateStatus(UUID parcelId, DeliveryStatus toStatus, String note, String proofUrl) {
+    public DeliveryStatus updateStatus(UUID parcelId, DeliveryStatus toStatus, UUID actorId, String note,
+                                       String proofUrl, String reasonCode) {
         return toStatus;
     }
 }

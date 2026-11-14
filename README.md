@@ -31,7 +31,7 @@ This first version is the base of the system. Users can sign up and log in (with
 | merchant-service | 8084 | Not built yet, only has a test endpoint |
 | notification-service | 8085 | Not built yet, connects to RabbitMQ |
 | realtime-service | 8086 | Live tracking (SSE and WebSocket). Skeleton for now |
-| reporting-service | 8087 | Daily delivery counts for the reports page. Skeleton for now |
+| reporting-service | 8087 | Daily counts of parcels booked, delivered and failed, built from parcel events, for the Reports page |
 | ai-assistant-service | 8088 | AI delivery assistant. Skeleton for now |
 | demo-store | 4000 | Fake online shop that uses the merchant API and receives webhooks. Placeholder for now |
 | postgres | 5432 | Database. Each service has its own schema |
@@ -136,3 +136,5 @@ docs/            diagrams
 ```
 
 Member 5 merchant integration setup, API contract and demo: [docs/member-5-merchant-integration.md](docs/member-5-merchant-integration.md).
+
+Member 8 delivery zones, zone pricing and reports: [docs/member-8-zones-pricing-reports.md](docs/member-8-zones-pricing-reports.md).

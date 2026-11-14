@@ -87,4 +87,18 @@ describe("api client", () => {
     expect(init.body).toBe('{"a":1}');
     expect(init.credentials).toBe("same-origin");
   });
+
+  it("sends multipart bodies without setting a content type", async () => {
+    const fetch = mockFetch(() => json(201, { proofId: "proof-1" }));
+    const body = new FormData();
+    body.append("file", "photo");
+
+    await expect(api("/courier/deliveries/parcel-1/proof", { method: "POST", body })).resolves.toEqual({
+      proofId: "proof-1",
+    });
+
+    const init = fetch.mock.calls[0][1] as RequestInit;
+    expect(init.body).toBe(body);
+    expect(init.headers).toBeUndefined();
+  });
 });
