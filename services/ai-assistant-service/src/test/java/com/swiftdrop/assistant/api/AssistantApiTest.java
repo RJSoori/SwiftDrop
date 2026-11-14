@@ -46,8 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Chat and MCP end to end inside the service: real Postgres (Flyway), WireMock as the Anthropic API and as the
- * gateway. The LLM is scripted: first it asks for a tool, then it answers.
+ * Chat and MCP end to end inside the service: real Postgres (Flyway), WireMock as the Gemini API (the default
+ * provider) and as the gateway. The LLM is scripted: first it asks for a tool, then it answers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -105,23 +105,25 @@ class AssistantApiTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
-    /** The model asks for {@code tool} with {@code input}, then answers {@code answer}. */
-    private void scriptLlm(String tool, String input, String answer) {
-        llm.stubFor(post("/v1/messages").inScenario("turn").whenScenarioStateIs(STARTED)
+    private static final String GENERATE = "/v1beta/models/gemini-3.8-flash:generateContent";
+
+    /** The model asks for {@code tool} with {@code args}, then answers {@code answer}. */
+    private void scriptLlm(String tool, String args, String answer) {
+        llm.stubFor(post(GENERATE).inScenario("turn").whenScenarioStateIs(STARTED)
                 .willReturn(okJson("""
-                        {"id":"msg_1","type":"message","role":"assistant","stop_reason":"tool_use",
-                         "content":[{"type":"thinking","thinking":"","signature":"sig-abc"},
-                                    {"type":"tool_use","id":"toolu_1","name":"%s","input":%s}]}""".formatted(tool, input)))
+                        {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[
+                          {"functionCall":{"id":"call_1","name":"%s","args":%s},"thoughtSignature":"sig-abc"}]}}]}"""
+                        .formatted(tool, args)))
                 .willSetStateTo("answered"));
-        llm.stubFor(post("/v1/messages").inScenario("turn").whenScenarioStateIs("answered")
+        llm.stubFor(post(GENERATE).inScenario("turn").whenScenarioStateIs("answered")
                 .willReturn(okJson("""
-                        {"id":"msg_2","type":"message","role":"assistant","stop_reason":"end_turn",
-                         "content":[{"type":"text","text":"%s"}]}""".formatted(answer))));
+                        {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[
+                          {"text":"thinking it over","thought":true},{"text":"%s"}]}}]}""".formatted(answer))));
     }
 
     private List<JsonNode> llmRequests() throws Exception {
         List<JsonNode> bodies = new ArrayList<>();
-        for (LoggedRequest r : llm.findAll(postRequestedFor(urlEqualTo("/v1/messages")))) {
+        for (LoggedRequest r : llm.findAll(postRequestedFor(urlEqualTo(GENERATE)))) {
             bodies.add(json.readTree(r.getBodyAsString()));
         }
         return bodies;
@@ -137,7 +139,7 @@ class AssistantApiTest {
 
         String body = chat("{\"message\":\"Where is my parcel SD-1001?\"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reply").value("Your parcel SD-1001 is out for delivery."))
+                .andExpect(jsonPath("$.reply").value("Your parcel SD-1001 is out for delivery.")) // thought part not shown
                 .andExpect(jsonPath("$.toolsUsed[0]").value("track_parcel"))
                 .andReturn().getResponse().getContentAsString();
         UUID sessionId = UUID.fromString(json.readTree(body).path("sessionId").asText());
@@ -145,21 +147,31 @@ class AssistantApiTest {
         List<JsonNode> calls = llmRequests();
         assertThat(calls).hasSize(2);
         JsonNode first = calls.get(0);
-        assertThat(first.path("model").asText()).isEqualTo("claude-opus-5-5");
-        assertThat(first.path("max_tokens").asInt()).isPositive();
-        assertThat(first.has("temperature")).isFalse();
-        assertThat(first.path("tools").findValuesAsText("name")).contains("track_parcel", "quote_fee", "list_my_parcels");
-        llm.verify(postRequestedFor(urlEqualTo("/v1/messages"))
-                .withHeader("x-api-key", equalTo("test-key"))
-                .withHeader("anthropic-version", equalTo("2023-06-01")));
+        assertThat(first.path("systemInstruction").path("parts").get(0).path("text").asText()).contains("SwiftDrop");
+        JsonNode declarations = first.path("tools").get(0).path("functionDeclarations");
+        List<String> names = new ArrayList<>();
+        for (JsonNode d : declarations) {
+            names.add(d.path("name").asText());
+            if (d.path("name").asText().equals("list_my_parcels")) {
+                assertThat(d.has("parameters")).isFalse(); // no arguments, no parameters
+            } else {
+                assertThat(d.path("parameters").path("type").asText()).isEqualTo("OBJECT");
+                assertThat(d.path("parameters").has("additionalProperties")).isFalse();
+            }
+        }
+        assertThat(names).containsExactlyInAnyOrder("track_parcel", "quote_fee", "list_my_parcels");
+        llm.verify(postRequestedFor(urlEqualTo(GENERATE)).withHeader("x-goog-api-key", equalTo("test-key")));
 
-        // Second call: the assistant turn is echoed unchanged (thinking signature included), then the tool result.
-        JsonNode conversation = calls.get(1).path("messages");
-        assertThat(conversation.get(1).path("content").get(0).path("signature").asText()).isEqualTo("sig-abc");
-        JsonNode toolResult = conversation.get(2).path("content").get(0);
-        assertThat(toolResult.path("type").asText()).isEqualTo("tool_result");
-        assertThat(toolResult.path("tool_use_id").asText()).isEqualTo("toolu_1");
-        assertThat(toolResult.path("content").asText()).contains("OUT_FOR_DELIVERY").doesNotContain("Nimal");
+        // Second call: the model turn is echoed unchanged (thought signature included), then the function response.
+        JsonNode contents = calls.get(1).path("contents");
+        assertThat(contents).hasSize(3);
+        assertThat(contents.get(1).path("role").asText()).isEqualTo("model");
+        assertThat(contents.get(1).path("parts").get(0).path("thoughtSignature").asText()).isEqualTo("sig-abc");
+        assertThat(contents.get(2).path("role").asText()).isEqualTo("user");
+        JsonNode response = contents.get(2).path("parts").get(0).path("functionResponse");
+        assertThat(response.path("name").asText()).isEqualTo("track_parcel");
+        assertThat(response.path("id").asText()).isEqualTo("call_1");
+        assertThat(response.path("response").path("result").asText()).contains("OUT_FOR_DELIVERY").doesNotContain("Nimal");
 
         assertThat(messages.findAll()).filteredOn(m -> m.getSessionId().equals(sessionId))
                 .extracting(ChatMessage::getRole).containsExactly("user", "tool", "assistant");
@@ -173,18 +185,21 @@ class AssistantApiTest {
                 new ChatMessage(session.getId(), ChatMessage.USER, "How much to Kandy?", null),
                 new ChatMessage(session.getId(), ChatMessage.TOOL, "{\"feeLkr\":530}", "quote_fee"),
                 new ChatMessage(session.getId(), ChatMessage.ASSISTANT, "It is LKR 530.", null)));
-        llm.stubFor(post("/v1/messages").willReturn(okJson("""
-                {"stop_reason":"end_turn","content":[{"type":"text","text":"Yes, 2 kg is LKR 530."}]}""")));
+        llm.stubFor(post(GENERATE).willReturn(okJson("""
+                {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[{"text":"Yes, 2 kg is LKR 530."}]}}]}""")));
 
         chat("{\"sessionId\":\"" + session.getId() + "\",\"message\":\"And for 2 kg?\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionId").value(session.getId().toString()));
 
-        JsonNode sent = llmRequests().get(0).path("messages");
-        assertThat(sent).hasSize(3);
-        assertThat(sent.get(0).path("content").asText()).isEqualTo("How much to Kandy?"); // leading reply dropped
-        assertThat(sent.get(1).path("content").asText()).isEqualTo("It is LKR 530.");
-        assertThat(sent.get(2).path("content").asText()).isEqualTo("And for 2 kg?");
+        JsonNode sent = llmRequests().get(0).path("contents");
+        assertThat(sent).hasSize(3); // leading reply dropped
+        assertThat(sent.get(0).path("role").asText()).isEqualTo("user");
+        assertThat(sent.get(0).path("parts").get(0).path("text").asText()).isEqualTo("How much to Kandy?");
+        assertThat(sent.get(1).path("role").asText()).isEqualTo("model");
+        assertThat(sent.get(1).path("parts").get(0).path("text").asText()).isEqualTo("It is LKR 530.");
+        assertThat(sent.get(2).path("role").asText()).isEqualTo("user");
+        assertThat(sent.get(2).path("parts").get(0).path("text").asText()).isEqualTo("And for 2 kg?");
     }
 
     @Test
@@ -198,14 +213,16 @@ class AssistantApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reply").value("I can't find that parcel on your account."));
 
-        String toolResult = llmRequests().get(1).path("messages").get(2).path("content").get(0).path("content").asText();
-        assertThat(toolResult).isEqualTo("I can't find that parcel on your account.");
-        assertThat(llmRequests().get(1).toString()).doesNotContain("DELIVERED", "customer 42");
+        JsonNode second = llmRequests().get(1);
+        JsonNode response = second.path("contents").get(2).path("parts").get(0).path("functionResponse").path("response");
+        assertThat(response.path("result").asText()).isEqualTo("I can't find that parcel on your account.");
+        assertThat(second.toString()).doesNotContain("DELIVERED", "customer 42");
     }
 
     @Test
     void providerFailureGivesTheFriendlyReplyNot500() throws Exception {
-        llm.stubFor(post("/v1/messages").willReturn(aResponse().withStatus(529).withBody("{\"type\":\"error\"}")));
+        llm.stubFor(post(GENERATE).willReturn(aResponse().withStatus(429)
+                .withHeader("Content-Type", "application/json").withBody("{\"error\":{\"status\":\"RESOURCE_EXHAUSTED\"}}")));
 
         chat("{\"message\":\"Where is my parcel?\"}")
                 .andExpect(status().isOk())
@@ -215,7 +232,16 @@ class AssistantApiTest {
 
     @Test
     void modelRefusalGivesAPoliteNo() throws Exception {
-        llm.stubFor(post("/v1/messages").willReturn(okJson("{\"stop_reason\":\"refusal\",\"content\":[]}")));
+        llm.stubFor(post(GENERATE).willReturn(okJson("{\"candidates\":[{\"finishReason\":\"SAFETY\"}]}")));
+
+        chat("{\"message\":\"something off-topic\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value(ChatService.REFUSAL_REPLY));
+    }
+
+    @Test
+    void blockedPromptGivesAPoliteNo() throws Exception {
+        llm.stubFor(post(GENERATE).willReturn(okJson("{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}")));
 
         chat("{\"message\":\"something off-topic\"}")
                 .andExpect(status().isOk())
@@ -227,7 +253,7 @@ class AssistantApiTest {
         ChatSession theirs = sessions.save(new ChatSession(UUID.randomUUID()));
 
         chat("{\"sessionId\":\"" + theirs.getId() + "\",\"message\":\"hi\"}").andExpect(status().isNotFound());
-        llm.verify(0, postRequestedFor(urlEqualTo("/v1/messages")));
+        llm.verify(0, postRequestedFor(urlEqualTo(GENERATE)));
     }
 
     @Test

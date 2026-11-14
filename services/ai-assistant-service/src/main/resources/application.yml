@@ -33,7 +33,11 @@ swiftdrop:
   # Tools call our own API through the gateway with the customer's JWT
   gateway-url: ${GATEWAY_URL:http://localhost:8080}
   llm:
-    base-url: https://api.anthropic.com
+    # gemini (default) or anthropic
+    provider: ${LLM_PROVIDER:gemini}
     # Empty: the assistant answers with a fixed friendly reply instead of calling the model
     api-key: ${LLM_API_KEY:}
-    model: ${LLM_MODEL:claude-opus-5-5}
+    # Empty: the provider's default model (gemini-3.8-flash for gemini)
+    model: ${LLM_MODEL:}
+    # Empty: the provider's public API
+    base-url: ${LLM_BASE_URL:}

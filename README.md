@@ -32,7 +32,7 @@ This first version is the base of the system. Users can sign up and log in (with
 | notification-service | 8085 | Not built yet, connects to RabbitMQ |
 | realtime-service | 8086 | Live tracking (SSE and WebSocket). Skeleton for now |
 | reporting-service | 8087 | Daily counts of parcels booked, delivered and failed, built from parcel events, for the Reports page |
-| ai-assistant-service | 8088 | AI delivery assistant. Skeleton for now |
+| ai-assistant-service | 8088 | Chat assistant that tracks parcels and quotes delivery fees (Gemini by default), plus an MCP server with the same tools |
 | demo-store | 4000 | Fake online shop that uses the merchant API and receives webhooks. Placeholder for now |
 | postgres | 5432 | Database. Each service has its own schema |
 | rabbitmq | 5672 (web UI on 15672) | Message broker for parcel events |
@@ -109,6 +109,21 @@ This deletes everything in your local database and MinIO.
 5. Copy the client ID and secret into `infra/compose/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then restart auth-service with `docker compose up -d auth-service`.
 
 New Google users are created as customers. If the Google email is verified and matches an existing account, Google login is linked to that account.
+
+## Setting up the AI assistant
+
+The assistant runs on the Gemini API by default. It has three tools: `track_parcel`, `list_my_parcels` and `quote_fee`. Each tool calls our own API through the gateway with the customer's login token, so it only sees that customer's parcels.
+
+1. Create a free API key in Google AI Studio (https://aistudio.google.com).
+2. Put it in `infra/compose/.env` as `LLM_API_KEY`, then restart the service with `docker compose up -d ai-assistant-service`.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `LLM_PROVIDER` | `gemini` | `gemini` or `anthropic` |
+| `LLM_API_KEY` | empty | Key for that provider. Without it the assistant gives a fixed reply pointing to the tracking and booking pages |
+| `LLM_MODEL` | `gemini-3.8-flash` | Model id. It is on the Gemini free tier and supports function calling. Leave it empty to use the provider's default |
+
+If the provider is down or rate limited, the customer gets the same fixed reply instead of an error. The same three tools are also offered as an MCP server at `/api/v1/assistant/mcp`, which takes the same login token.
 
 ## Tests
 
