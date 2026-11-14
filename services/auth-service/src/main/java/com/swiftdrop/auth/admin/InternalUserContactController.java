@@ -18,14 +18,14 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/internal/v1/users")
-public class InternalUserController {
+public class InternalUserContactController {
 
     public record UserContact(UUID id, String email, String fullName) {
     }
 
     private final UserRepository users;
 
-    public InternalUserController(UserRepository users) {
+    public InternalUserContactController(UserRepository users) {
         this.users = users;
     }
 

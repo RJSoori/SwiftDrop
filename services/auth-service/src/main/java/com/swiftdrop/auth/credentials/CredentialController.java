@@ -55,7 +55,8 @@ public class CredentialController {
         credentialService.revoke(humanMerchant(), id);
     }
 
-    private static UUID humanMerchant() {
+    /** The signed-in merchant's user id. 403 for machine tokens (any token with a {@code scope} claim). */
+    static UUID humanMerchant() {
         if (CurrentUser.jwt().hasClaim("scope")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "API credentials can only be managed from a signed-in merchant account");

@@ -19,7 +19,9 @@ claim. The gateway applies coarse role rules per path, and each service re-check
 ## 9.2 Merchant API keys and OAuth clients
 
 An approved merchant creates credentials on the **API keys** page (`/merchant/api-keys`), or with
-`POST /api/v1/auth/merchant/credentials {type: API_KEY | CLIENT, name}`.
+`POST /api/v1/auth/merchant/credentials {type: API_KEY | CLIENT, name}`. The merchant **Webhooks** page uses
+`/api/v1/auth/merchant/api-keys` (create, list, revoke API keys); it is backed by the same service and table, so a key
+made on either page works the same everywhere.
 
 | Property | Design |
 |---|---|
