@@ -1,11 +1,11 @@
 server:
-  port: 8086
+  port: ${SERVER_PORT:8086}
 
 spring:
   application:
-    name: realtime-service
+    name: ${SPRING_APPLICATION_NAME:realtime-service}
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop?currentSchema=realtime}
     username: ${DB_USERNAME:realtime_svc}
     password: ${DB_PASSWORD:}
   flyway:
@@ -13,7 +13,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate.default_schema: realtime
   security:
@@ -26,9 +26,13 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}

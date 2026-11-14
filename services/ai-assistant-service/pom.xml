@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>ai-assistant-service</artifactId>
-    <description>AI delivery assistant service (Phase 2 skeleton)</description>
+    <description>Customer chat assistant: answers parcel and price questions by calling our API as tools; also an MCP server</description>
 
     <dependencies>
         <dependency>
@@ -41,6 +41,18 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.swiftdrop</groupId>
+            <artifactId>test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- plays the Anthropic API and the gateway in tests -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.13.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

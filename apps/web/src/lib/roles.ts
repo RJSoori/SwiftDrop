@@ -17,7 +17,13 @@ export const ROLE_LABEL: Record<Role, string> = {
   CUSTOMER: "Customer",
 };
 
-const PRIORITY: Role[] = ["ADMIN", "DISPATCHER", "COURIER", "MERCHANT", "CUSTOMER"];
+const PRIORITY: Role[] = [
+  "ADMIN",
+  "DISPATCHER",
+  "COURIER",
+  "MERCHANT",
+  "CUSTOMER",
+];
 
 export function primaryRole(roles: readonly string[]): Role | undefined {
   return PRIORITY.find((r) => roles.includes(r));
@@ -31,7 +37,9 @@ export function homeFor(roles: readonly string[]): string {
 
 /** The role a dashboard path belongs to, or undefined for public pages. */
 export function roleForPath(pathname: string): Role | undefined {
-  return PRIORITY.find((r) => pathname === DASHBOARD[r] || pathname.startsWith(DASHBOARD[r] + "/"));
+  return PRIORITY.find(
+    (r) => pathname === DASHBOARD[r] || pathname.startsWith(DASHBOARD[r] + "/"),
+  );
 }
 
 export const NAV: Record<Role, { href: string; label: string }[]> = {
@@ -40,7 +48,7 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
     { href: "/merchant", label: "Orders" },
     { href: "/merchant/webhooks", label: "Webhooks" },
   ],
-  COURIER: [{ href: "/courier", label: "Overview" }],
+  COURIER: [{ href: "/courier", label: "Today's deliveries" }],
   DISPATCHER: [{ href: "/dispatcher", label: "Overview" }],
   ADMIN: [
     { href: "/admin", label: "Overview" },

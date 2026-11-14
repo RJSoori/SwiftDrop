@@ -14,10 +14,12 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,6 +38,20 @@ public class WebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookService.class);
 
+    // Records for M5 contracts
+    public record Endpoint(String url, boolean active, Instant updatedAt) {}
+    public record NewEndpoint(String url, String secret) {}
+    public record Delivery(
+            UUID id,
+            UUID eventId,
+            int attempt,
+            String state,
+            Integer statusCode,
+            String lastError,
+            Instant nextRetryAt,
+            Instant createdAt,
+            Instant deliveredAt) {}
+
     private final WebhookEndpointRepository endpointRepository;
     private final WebhookDeliveryRepository deliveryRepository;
     private final SecretEncryptor secretEncryptor;
@@ -44,6 +60,13 @@ public class WebhookService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final List<Long> retryDelaysMs;
+
+    @Autowired(required = false)
+    private JdbcTemplate db;
+    @Autowired(required = false)
+    private SecretVault vault;
+    @Autowired(required = false)
+    private WebhookUrlPolicy policy;
 
     public WebhookService(
             WebhookEndpointRepository endpointRepository,
@@ -88,6 +111,97 @@ public class WebhookService {
         return "whsec_" + HexFormat.of().formatHex(randomBytes);
     }
 
+    // --- M5 Methods (used by WebhookController and M5 tests) ---
+
+    @Transactional(readOnly = true)
+    public Endpoint endpoint(UUID merchantId) {
+        if (db != null) {
+            var rows = db.query(
+                    "select url,active,updated_at from merchant.webhook_endpoints where merchant_id=?",
+                    (rs, n) -> new Endpoint(rs.getString(1), rs.getBoolean(2), rs.getTimestamp(3).toInstant()),
+                    merchantId);
+            return rows.isEmpty() ? new Endpoint(null, false, null) : rows.getFirst();
+        }
+        return endpointRepository.findByMerchantId(merchantId)
+                .map(e -> new Endpoint(e.getUrl(), e.isActive(), e.getUpdatedAt()))
+                .orElse(new Endpoint(null, false, null));
+    }
+
+    @Transactional
+    public NewEndpoint configure(UUID merchantId, String url) {
+        if (policy != null) {
+            policy.validate(url);
+        }
+        String secret = (vault != null) ? vault.generate() : generateSecret();
+        String enc = (vault != null) ? vault.encrypt(secret) : secretEncryptor.encrypt(secret);
+        if (db != null) {
+            db.update(
+                    "insert into merchant.webhook_endpoints (merchant_id,url,secret_encrypted) values (?,?,?) "
+                            + "on conflict (merchant_id) do update set url=excluded.url,secret_encrypted=excluded.secret_encrypted,active=true,updated_at=now()",
+                    merchantId, url, enc);
+        } else {
+            configureEndpoint(merchantId, url);
+        }
+        return new NewEndpoint(url, secret);
+    }
+
+    @Transactional
+    public NewEndpoint rotate(UUID merchantId) {
+        String secret = (vault != null) ? vault.generate() : generateSecret();
+        String enc = (vault != null) ? vault.encrypt(secret) : secretEncryptor.encrypt(secret);
+        if (db != null) {
+            var urls = db.query(
+                    "update merchant.webhook_endpoints set secret_encrypted=?,updated_at=now() where merchant_id=? returning url",
+                    (rs, n) -> rs.getString(1), enc, merchantId);
+            if (urls.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Configure a webhook first");
+            }
+            return new NewEndpoint(urls.getFirst(), secret);
+        }
+        WebhookEndpointResponse res = rotateSecret(merchantId);
+        return new NewEndpoint(res.url(), res.secret());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Delivery> deliveries(UUID merchantId, int limit) {
+        if (limit < 1 || limit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Limit must be between 1 and 100");
+        }
+        if (db != null) {
+            return db.query(
+                    "select * from merchant.webhook_deliveries where merchant_id=? order by created_at desc,id limit ?",
+                    (rs, n) -> new Delivery(
+                            rs.getObject("id", UUID.class),
+                            rs.getObject("event_id", UUID.class),
+                            rs.getInt("attempt"),
+                            rs.getString("state"),
+                            (Integer) rs.getObject("status_code"),
+                            rs.getString("last_error"),
+                            rs.getTimestamp("next_retry_at") != null ? rs.getTimestamp("next_retry_at").toInstant() : null,
+                            rs.getTimestamp("created_at").toInstant(),
+                            rs.getTimestamp("delivered_at") == null ? null : rs.getTimestamp("delivered_at").toInstant()),
+                    merchantId, limit);
+        }
+        return List.of();
+    }
+
+    @Transactional
+    public void replay(UUID merchantId, UUID deliveryId) {
+        if (db != null) {
+            int count = db.update(
+                    "update merchant.webhook_deliveries d set state='PENDING',attempt=0,status_code=null,last_error=null,next_retry_at=now(),delivered_at=null,dead_lettered_at=null,endpoint_url=e.url,secret_encrypted=e.secret_encrypted "
+                            + "from merchant.webhook_endpoints e where d.id=? and d.merchant_id=? and d.state='DEAD' and e.merchant_id=d.merchant_id and e.active=true",
+                    deliveryId, merchantId);
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Replay requires a dead delivery owned by you and an active endpoint");
+            }
+            return;
+        }
+        replayDelivery(merchantId, deliveryId);
+    }
+
+    // --- M6 Methods (used by MerchantWebhookController and WebhookEventListener) ---
+
     @Transactional
     public WebhookEndpointResponse configureEndpoint(UUID merchantId, String url) {
         String plainSecret = generateSecret();
@@ -129,28 +243,31 @@ public class WebhookService {
 
     @Transactional
     public WebhookDeliveryResponse replayDelivery(UUID merchantId, UUID deliveryId) {
-        WebhookDelivery delivery = deliveryRepository.findByIdAndMerchantId(deliveryId, merchantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Webhook delivery not found"));
+        WebhookDelivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery not found"));
 
-        log.info("Replaying delivery {} for merchant {}", deliveryId, merchantId);
+        if (!delivery.getMerchantId().equals(merchantId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Delivery does not belong to merchant");
+        }
 
-        // Execute delivery with attempt 1
-        WebhookEndpoint endpoint = endpointRepository.findByMerchantIdAndActiveTrue(merchantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active webhook endpoint configured"));
+        if (!"DEAD".equalsIgnoreCase(delivery.getState()) && !"FAILED".equalsIgnoreCase(delivery.getState())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only DEAD or FAILED deliveries can be replayed");
+        }
 
-        // Dispatch synchronously or queue
-        dispatchDeliveryAttempt(endpoint, delivery.getEventId(), merchantId, "{\"replay\":true}", 1);
+        delivery.setState("PENDING");
+        delivery.setAttempt(1);
+        delivery.setStatusCode(null);
+        delivery.setLastError(null);
+        delivery.setNextRetryAt(Instant.now());
+        deliveryRepository.save(delivery);
+
         return WebhookDeliveryResponse.from(delivery);
     }
 
     public void dispatchWebhook(UUID merchantId, UUID eventId, Object eventPayload, int attempt) {
-        if (merchantId == null) {
-            return;
-        }
-
-        Optional<WebhookEndpoint> endpointOpt = endpointRepository.findByMerchantIdAndActiveTrue(merchantId);
-        if (endpointOpt.isEmpty()) {
-            log.debug("No active webhook endpoint for merchant {}", merchantId);
+        Optional<WebhookEndpoint> endpointOpt = endpointRepository.findByMerchantId(merchantId);
+        if (endpointOpt.isEmpty() || !endpointOpt.get().isActive()) {
+            log.info("No active webhook endpoint for merchant {}, skipping delivery", merchantId);
             return;
         }
 
@@ -264,4 +381,3 @@ public class WebhookService {
             int attempt
     ) {}
 }
-
