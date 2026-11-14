@@ -5,6 +5,7 @@ import com.swiftdrop.parcel.dto.*;
 import com.swiftdrop.parcel.service.ParcelService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -47,30 +48,26 @@ public class ParcelController {
     }
 
     /**
-     * Public tracking endpoint: allows tracking by tracking number without login.
-     */
-    @GetMapping("/track/{trackingNo}")
-    public ResponseEntity<ParcelDetailResponse> trackParcel(@PathVariable String trackingNo) {
-        ParcelDetailResponse details = parcelService.getParcelDetails(trackingNo);
-        return ResponseEntity.ok(details);
-    }
-
-    /**
-     * Authenticated parcel lookup by UUID with full history.
+     * Parcel lookup by UUID with full history: the owning customer, a dispatcher or an admin.
+     * Anyone else gets 404, so the id does not reveal that the parcel exists.
      */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ParcelDetailResponse> getParcelById(@PathVariable UUID id) {
+        if (!isStaff() && !parcelService.canAccessParcel(id, CurrentUser.id(), "CUSTOMER")) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found: " + id);
+        }
         ParcelResponse parcel = parcelService.getParcelById(id);
         ParcelDetailResponse details = parcelService.getParcelDetails(parcel.trackingNo());
         return ResponseEntity.ok(details);
     }
 
     /**
-     * Status transition endpoint for couriers and dispatchers.
+     * Status transition endpoint for dispatchers and admins. Couriers update status through dispatch-service,
+     * which calls the internal endpoint.
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('DISPATCHER', 'ADMIN')")
     public ResponseEntity<ParcelResponse> updateStatus(
             @PathVariable UUID id,
             @RequestBody UpdateStatusRequest request) {
@@ -118,12 +115,19 @@ public class ParcelController {
     }
 
     /**
-     * Lists parcels assigned to a specific courier.
+     * Lists parcels assigned to a specific courier: a dispatcher, an admin, or that courier.
      */
     @GetMapping("/courier/{courierId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('DISPATCHER', 'ADMIN', 'COURIER')")
     public ResponseEntity<List<ParcelResponse>> getCourierParcels(@PathVariable UUID courierId) {
+        if (!isStaff() && !courierId.equals(CurrentUser.id())) {
+            throw new AccessDeniedException("Couriers can only list their own parcels");
+        }
         List<ParcelResponse> parcels = parcelService.getParcelsByCourier(courierId);
         return ResponseEntity.ok(parcels);
+    }
+
+    private static boolean isStaff() {
+        return CurrentUser.hasRole("DISPATCHER") || CurrentUser.hasRole("ADMIN");
     }
 }
