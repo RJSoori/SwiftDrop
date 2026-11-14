@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  courierDeliveryTopics,
   deliveryDetailsSchema,
   deliveryOtpSchema,
   failDeliverySchema,
@@ -33,6 +34,15 @@ describe("today's courier deliveries response schema", () => {
 
   it("accepts CREATED parcels", () => {
     expect(todaysDeliveriesSchema.parse([{ ...validDelivery, status: "CREATED" }])[0]?.status).toBe("CREATED");
+  });
+});
+
+describe("courier live updates", () => {
+  it("subscribes only to the logged-in courier's topic", () => {
+    expect(courierDeliveryTopics("7b2f410c-68e9-4c65-99ba-08a60b7678f7")).toEqual([
+      "/topic/courier/7b2f410c-68e9-4c65-99ba-08a60b7678f7",
+    ]);
+    expect(courierDeliveryTopics(undefined)).toBeNull();
   });
 });
 

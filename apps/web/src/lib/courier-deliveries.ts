@@ -82,6 +82,10 @@ export function nextCourierStatuses(status: DeliveryStatus): CourierUpdateStatus
   return NEXT_COURIER_STATUSES[status];
 }
 
+export function courierDeliveryTopics(courierId: string | undefined): string[] | null {
+  return courierId ? [`/topic/courier/${encodeURIComponent(courierId)}`] : null;
+}
+
 async function fetchTodaysDeliveries(): Promise<DeliverySummary[]> {
   const response = await api<unknown>("/courier/deliveries/today");
   return todaysDeliveriesSchema.parse(response);
