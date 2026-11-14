@@ -10,14 +10,18 @@ import com.swiftdrop.common.outbox.OutboxEvent;
 import com.swiftdrop.common.outbox.OutboxEventRepository;
 import com.swiftdrop.parcel.repository.ParcelRepository;
 import com.swiftdrop.parcel.repository.ParcelStatusHistoryRepository;
+import com.swiftdrop.parcel.zone.ZonePricing;
+import com.swiftdrop.parcel.zone.ZonePricingResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,6 +42,7 @@ public class ParcelService {
     private final ParcelStateMachine parcelStateMachine;
     private final Map<String, PricingStrategy> pricingStrategies;
     private final ObjectMapper objectMapper;
+    private final ZonePricingResolver zonePricing;
 
     // Default rates if zone rules are not in DB
     private static final BigDecimal DEFAULT_BASE_FEE = new BigDecimal("350.00");
@@ -50,6 +55,19 @@ public class ParcelService {
                          ParcelStateMachine parcelStateMachine,
                          Map<String, PricingStrategy> pricingStrategies,
                          ObjectMapper objectMapper) {
+        this(parcelRepository, historyRepository, outboxEventRepository, idempotencyKeyRepository,
+                parcelStateMachine, pricingStrategies, objectMapper, ZonePricingResolver.NONE);
+    }
+
+    @Autowired
+    public ParcelService(ParcelRepository parcelRepository,
+                         ParcelStatusHistoryRepository historyRepository,
+                         OutboxEventRepository outboxEventRepository,
+                         IdempotencyKeyRepository idempotencyKeyRepository,
+                         ParcelStateMachine parcelStateMachine,
+                         Map<String, PricingStrategy> pricingStrategies,
+                         ObjectMapper objectMapper,
+                         ZonePricingResolver zonePricing) {
         this.parcelRepository = parcelRepository;
         this.historyRepository = historyRepository;
         this.outboxEventRepository = outboxEventRepository;
@@ -57,10 +75,13 @@ public class ParcelService {
         this.parcelStateMachine = parcelStateMachine;
         this.pricingStrategies = pricingStrategies;
         this.objectMapper = objectMapper;
+        this.zonePricing = zonePricing;
     }
 
     /**
      * Calculates delivery fee estimate based on selected strategy, weight, and dimensions.
+     * When the request has locations (or zone ids), the drop-off zone's pricing rule supplies the strategy and
+     * rates (M8); EXPRESS service still uses the express strategy. Without locations the default rates apply.
      */
     public QuoteResponse calculateQuote(QuoteRequest request) {
         Dimensions dims = resolveDimensions(request.lengthCm(), request.widthCm(), request.heightCm());
@@ -68,10 +89,36 @@ public class ParcelService {
         BigDecimal volWeight = dims.calculateVolumetricWeight();
         BigDecimal chargeableWeight = actualWeight.max(volWeight);
 
-        PricingStrategy strategy = resolveStrategy(request.strategy());
-        BigDecimal fee = strategy.calculateFee(actualWeight, dims, DEFAULT_BASE_FEE, DEFAULT_PER_KG_FEE);
+        ZonePricing zones = zonePricing.resolve(request);
+        PricingStrategyType strategyType = request.strategy();
+        BigDecimal baseFee = DEFAULT_BASE_FEE;
+        BigDecimal perKgFee = DEFAULT_PER_KG_FEE;
+        BigDecimal sizeMultiplier = BigDecimal.ONE;
+        if (zones.rule() != null) {
+            baseFee = zones.rule().baseFee();
+            perKgFee = zones.rule().perKgFee();
+            sizeMultiplier = zones.rule().sizeMultiplier();
+            if (strategyType != PricingStrategyType.EXPRESS) {
+                strategyType = zones.rule().strategy();
+            }
+        }
 
-        return QuoteResponse.of(fee, actualWeight, volWeight, chargeableWeight, request.strategy());
+        PricingStrategy strategy = resolveStrategy(strategyType);
+        BigDecimal fee = strategy.calculateFee(actualWeight, dims, baseFee, perKgFee);
+        if ("LARGE".equalsIgnoreCase(request.size())) {
+            fee = fee.multiply(sizeMultiplier).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        if (zones.pickupZone() == null && zones.dropoffZone() == null) {
+            return QuoteResponse.of(fee, actualWeight, volWeight, chargeableWeight, strategyType);
+        }
+        boolean zoned = zones.rule() != null;
+        return new QuoteResponse(fee, actualWeight, volWeight, chargeableWeight, strategyType, "LKR",
+                zones.pickupZone() != null ? zones.pickupZone().id() : null,
+                zones.pickupZone() != null ? zones.pickupZone().name() : null,
+                zones.dropoffZone() != null ? zones.dropoffZone().id() : null,
+                zones.dropoffZone() != null ? zones.dropoffZone().name() : null,
+                baseFee, perKgFee, zoned ? sizeMultiplier : null);
     }
 
     /**
@@ -102,7 +149,8 @@ public class ParcelService {
 
         QuoteRequest quoteReq = new QuoteRequest(
                 request.weightKg(), request.lengthCm(), request.widthCm(), request.heightCm(),
-                request.strategy(), request.pickupZoneId(), request.dropoffZoneId()
+                request.strategy(), request.pickupZoneId(), request.dropoffZoneId(),
+                request.pickupLat(), request.pickupLng(), request.dropoffLat(), request.dropoffLng(), request.size()
         );
         QuoteResponse quote = calculateQuote(quoteReq);
 
@@ -116,8 +164,8 @@ public class ParcelService {
         );
         parcel.setOrigin(merchantId != null ? "MERCHANT" : "CUSTOMER");
         parcel.setMerchantId(merchantId);
-        parcel.setPickupZoneId(request.pickupZoneId());
-        parcel.setDropoffZoneId(request.dropoffZoneId());
+        parcel.setPickupZoneId(quote.pickupZoneId() != null ? quote.pickupZoneId() : request.pickupZoneId());
+        parcel.setDropoffZoneId(quote.dropoffZoneId() != null ? quote.dropoffZoneId() : request.dropoffZoneId());
         parcel.setPickupCity(request.pickupCity());
         parcel.setPickupLat(request.pickupLat());
         parcel.setPickupLng(request.pickupLng());
@@ -177,7 +225,8 @@ public class ParcelService {
     public ParcelResponse createMerchantParcel(InternalCreateParcelRequest request) {
         QuoteRequest quoteReq = new QuoteRequest(
                 request.weightKg(), request.lengthCm(), request.widthCm(), request.heightCm(),
-                request.strategy(), request.pickupZoneId(), request.dropoffZoneId()
+                request.strategy(), request.pickupZoneId(), request.dropoffZoneId(),
+                request.pickupLat(), request.pickupLng(), request.dropoffLat(), request.dropoffLng(), request.size()
         );
         QuoteResponse quote = calculateQuote(quoteReq);
 
@@ -190,8 +239,8 @@ public class ParcelService {
         parcel.setOrigin("MERCHANT");
         parcel.setMerchantId(request.merchantId());
         parcel.setMerchantOrderRef(request.merchantOrderRef());
-        parcel.setPickupZoneId(request.pickupZoneId());
-        parcel.setDropoffZoneId(request.dropoffZoneId());
+        parcel.setPickupZoneId(quote.pickupZoneId() != null ? quote.pickupZoneId() : request.pickupZoneId());
+        parcel.setDropoffZoneId(quote.dropoffZoneId() != null ? quote.dropoffZoneId() : request.dropoffZoneId());
         parcel.setPickupCity(request.pickupCity());
         parcel.setPickupLat(request.pickupLat());
         parcel.setPickupLng(request.pickupLng());

@@ -145,8 +145,8 @@ export default function CustomerDashboard() {
       setQuote(data);
       setFormError(null);
     },
-    onError: () => {
-      setFormError("Could not calculate delivery quote. Please check the values entered.");
+    onError: (err) => {
+      setFormError(err instanceof ApiError ? err.message : "Could not calculate delivery quote. Please check the values entered.");
     },
   });
 
@@ -178,12 +178,20 @@ export default function CustomerDashboard() {
       return;
     }
 
+    // The cities' coordinates select the delivery zones and their pricing rule (same as at booking).
+    const pickupGeo = SRI_LANKA_CITIES.find((c) => c.name === pickupCity);
+    const dropoffGeo = SRI_LANKA_CITIES.find((c) => c.name === dropoffCity);
     quoteMutation.mutate({
       weightKg: w,
       lengthCm: isNaN(l) ? 20 : l,
       widthCm: isNaN(wi) ? 15 : wi,
       heightCm: isNaN(h) ? 10 : h,
       strategy: serviceType === "EXPRESS" ? "EXPRESS" : strategy,
+      pickupLat: pickupGeo?.lat,
+      pickupLng: pickupGeo?.lng,
+      dropoffLat: dropoffGeo?.lat,
+      dropoffLng: dropoffGeo?.lng,
+      size,
     });
   }
 
@@ -535,6 +543,12 @@ export default function CustomerDashboard() {
                         <span className="text-muted-foreground">Chargeable Weight:</span>
                         <span className="font-semibold">{quote.chargeableWeightKg} kg</span>
                       </div>
+                      {quote.dropoffZoneName && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Pricing Zone:</span>
+                          <span className="font-medium">{quote.dropoffZoneName}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between border-t pt-1.5 font-bold text-sm text-foreground">
                         <span>Estimated Fee:</span>
                         <span className="text-brand">LKR {Number(quote.feeLkr).toFixed(2)}</span>
