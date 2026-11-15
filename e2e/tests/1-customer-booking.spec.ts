@@ -32,7 +32,9 @@ test.describe("Scenario 1: customer books a parcel and tracks it", () => {
     await expect(waybill).toContainText(`Fee: LKR ${quotedFee}`);
     await expect(page.getByAltText(`Tracking QR Code for ${trackingNo}`)).toBeVisible();
 
-    // The new parcel is listed under My Deliveries.
+    // The new parcel is listed on the My deliveries page.
+    await page.getByRole("link", { name: "My deliveries", exact: true }).click();
+    await expect(page).toHaveURL(/\/customer\/deliveries$/);
     await expect(page.getByRole("link", { name: trackingNo, exact: true })).toBeVisible();
   });
 

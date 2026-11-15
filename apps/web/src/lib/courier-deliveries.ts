@@ -15,6 +15,7 @@ export const courierUpdateStatusSchema = z.enum(["PICKED_UP", "IN_TRANSIT", "OUT
 
 export const deliverySummarySchema = z.object({
   parcelId: z.uuid(),
+  trackingNo: z.string().optional(),
   status: deliveryStatusSchema,
   completed: z.boolean(),
 });
@@ -23,6 +24,7 @@ export const todaysDeliveriesSchema = z.array(deliverySummarySchema);
 
 export const deliveryDetailsSchema = z.object({
   parcelId: z.uuid(),
+  trackingNo: z.string().optional(),
   status: deliverySummarySchema.shape.status,
   recipientName: z.string().min(1),
   recipientPhone: z.string(),

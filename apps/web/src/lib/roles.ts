@@ -43,7 +43,10 @@ export function roleForPath(pathname: string): Role | undefined {
 }
 
 export const NAV: Record<Role, { href: string; label: string }[]> = {
-  CUSTOMER: [{ href: "/customer", label: "Overview" }],
+  CUSTOMER: [
+    { href: "/customer", label: "Book a delivery" },
+    { href: "/customer/deliveries", label: "My deliveries" },
+  ],
   MERCHANT: [
     { href: "/merchant", label: "Orders" },
     { href: "/merchant/webhooks", label: "Webhooks" },
@@ -56,9 +59,32 @@ export const NAV: Record<Role, { href: string; label: string }[]> = {
   ],
   ADMIN: [
     { href: "/admin", label: "Overview" },
-    { href: "/admin/merchants", label: "Merchant applications" },
-    { href: "/admin/users", label: "Staff accounts" },
+    { href: "/admin/merchants", label: "Merchants" },
+    { href: "/admin/users", label: "Users" },
     { href: "/admin/zones", label: "Zones & pricing" },
     { href: "/admin/reports", label: "Reports" },
+    { href: "/admin/audit-log", label: "Audit log" },
   ],
 };
+
+/**
+ * Roles from the sd_access cookie. The JWT is decoded, not verified: this only decides which page or link to
+ * show, and every API call is verified by the gateway and the services.
+ */
+export function rolesFromToken(token: string | undefined): string[] | null {
+  const payload = token?.split(".")[1];
+  if (!payload) return null;
+  try {
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return Array.isArray(json.roles) ? json.roles : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where the public tracking page sends the visitor back to: their own list when logged in, the search otherwise. */
+export function trackingBackLink(roles: readonly string[] | null): { href: string; label: string } {
+  if (roles?.includes("CUSTOMER")) return { href: "/customer/deliveries", label: "My deliveries" };
+  if (roles?.includes("MERCHANT")) return { href: "/merchant", label: "My orders" };
+  return { href: "/", label: "Track another parcel" };
+}

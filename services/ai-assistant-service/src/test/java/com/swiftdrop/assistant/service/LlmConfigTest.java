@@ -20,7 +20,7 @@ class LlmConfigTest {
     void geminiIsTheDefaultWithAFreeTierModel() {
         LlmClient llm = create("gemini", "");
         assertThat(llm).isInstanceOf(GeminiClient.class);
-        assertThat(((GeminiClient) llm).model()).isEqualTo("gemini-3.8-flash");
+        assertThat(((GeminiClient) llm).model()).isEqualTo(GeminiClient.DEFAULT_MODEL).startsWith("gemini-3.5-flash-lite");
         assertThat(llm.configured()).isTrue();
     }
 

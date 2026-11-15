@@ -40,6 +40,6 @@ public class RepositoryAssignmentLookup implements AssignmentLookup {
     }
 
     private static AssignedDelivery toAssignedDelivery(AssignmentRepository.DeliveryProjection delivery) {
-        return new AssignedDelivery(delivery.getParcelId(), delivery.getStatus());
+        return new AssignedDelivery(delivery.getParcelId(), delivery.getStatus(), delivery.getTrackingNo());
     }
 }
