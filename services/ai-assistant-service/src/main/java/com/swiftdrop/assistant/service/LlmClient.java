@@ -44,7 +44,8 @@ public interface LlmClient {
     static RestClient.Builder http(RestClient.Builder builder, String baseUrl) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(5)).build());
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        // One model call. A busy model is given up on after this, so the customer is not left waiting for a minute.
+        factory.setReadTimeout(Duration.ofSeconds(25));
         return builder.clone().baseUrl(baseUrl).requestFactory(factory);
     }
 }

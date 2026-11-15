@@ -37,7 +37,7 @@ swiftdrop:
     provider: ${LLM_PROVIDER:gemini}
     # Empty: the assistant answers with a fixed friendly reply instead of calling the model
     api-key: ${LLM_API_KEY:}
-    # Empty: the provider's default model (gemini-3.8-flash for gemini)
+    # Empty: the provider's default. For gemini this can be a comma-separated list, tried in order
     model: ${LLM_MODEL:}
     # Empty: the provider's public API
     base-url: ${LLM_BASE_URL:}

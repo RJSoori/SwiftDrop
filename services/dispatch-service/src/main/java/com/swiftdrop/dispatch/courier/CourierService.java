@@ -64,7 +64,7 @@ public class CourierService {
     public List<DeliverySummary> todaysDeliveries() {
         UUID courierId = CurrentUser.id();
         return assignmentLookup.findTodaysDeliveries(courierId).stream()
-                .map(delivery -> new DeliverySummary(delivery.parcelId(), delivery.status(),
+                .map(delivery -> new DeliverySummary(delivery.parcelId(), delivery.trackingNo(), delivery.status(),
                         "DELIVERED".equals(delivery.status()) || "FAILED".equals(delivery.status())))
                 .toList();
     }
@@ -72,8 +72,8 @@ public class CourierService {
     public DeliveryDetails deliveryDetails(UUID parcelId) {
         AssignedDelivery assignment = requireAssignment(parcelId);
         ParcelContact contact = parcelClient.getContact(parcelId);
-        return new DeliveryDetails(parcelId, assignment.status(), contact.recipientName(), contact.recipientPhone(),
-                contact.dropoffAddress(), contact.dropoffCity());
+        return new DeliveryDetails(parcelId, assignment.trackingNo(), assignment.status(), contact.recipientName(),
+                contact.recipientPhone(), contact.dropoffAddress(), contact.dropoffCity());
     }
 
     public DeliveryStatus updateStatus(UUID parcelId, StatusRequest request) {
