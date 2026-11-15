@@ -11,7 +11,7 @@ function formatStatus(status: string) {
   return status.replaceAll("_", " ");
 }
 
-export function TrackingPage({ trackingNo }: { trackingNo: string }) {
+export function TrackingPage({ trackingNo, back }: { trackingNo: string; back: { href: string; label: string } }) {
   const [tracking, setTracking] = useState<TrackingView | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -58,8 +58,8 @@ export function TrackingPage({ trackingNo }: { trackingNo: string }) {
     <main className="min-h-dvh bg-background">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-5">
         <Brand />
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Track another parcel
+        <Link href={back.href} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> {back.label}
         </Link>
       </header>
       <section className="mx-auto max-w-3xl px-4 pb-12">

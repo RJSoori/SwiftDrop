@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { homeFor, roleForPath } from "./lib/roles";
+import { homeFor, roleForPath, rolesFromToken } from "./lib/roles";
 
 /**
  * Page routing only: unauthenticated -> /login, wrong role -> own dashboard.
@@ -14,17 +14,6 @@ export function middleware(request: NextRequest) {
   if (!roles) return NextResponse.redirect(new URL("/login", request.url));
   if (!roles.includes(required)) return NextResponse.redirect(new URL(homeFor(roles), request.url));
   return NextResponse.next();
-}
-
-function rolesFromToken(token: string | undefined): string[] | null {
-  const payload = token?.split(".")[1];
-  if (!payload) return null;
-  try {
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return Array.isArray(json.roles) ? json.roles : null;
-  } catch {
-    return null;
-  }
 }
 
 export const config = {
