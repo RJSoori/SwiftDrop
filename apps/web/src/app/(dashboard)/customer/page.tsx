@@ -1,107 +1,34 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
 import { PageHeading } from "@/components/dashboard";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   api,
   ApiError,
   type CreateParcelRequest,
   type ParcelResponse,
-  type ParcelStatus,
   type QuoteRequest,
   type QuoteResponse,
-  type TrackingView,
 } from "@/lib/api";
 import { useMe } from "@/lib/session";
-import { useLiveUpdates } from "@/lib/realtime";
 import {
   Package,
   Truck,
-  ArrowRight,
   Calculator,
   CheckCircle2,
   AlertCircle,
-  Clock,
   QrCode,
   FileText,
   ExternalLink,
   RotateCcw,
 } from "lucide-react";
 import { SRI_LANKA_CITIES } from "@/lib/cities";
-
-function getStatusBadgeVariant(status: ParcelStatus) {
-  switch (status) {
-    case "DELIVERED":
-      return "default";
-    case "IN_TRANSIT":
-    case "OUT_FOR_DELIVERY":
-    case "PICKED_UP":
-      return "secondary";
-    case "FAILED":
-    case "RETURNED":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
-function formatStatus(status: ParcelStatus): string {
-  return status.replace(/_/g, " ");
-}
-
-function CustomerParcelRow({ parcel, tracking }: { parcel: ParcelResponse; tracking?: TrackingView }) {
-  const currentStatus = tracking?.currentStatus ?? parcel.currentStatus;
-
-  return (
-    <TableRow>
-      <TableCell className="font-mono text-xs font-semibold text-foreground">
-        <Link href={`/track/${encodeURIComponent(parcel.trackingNo)}`} className="text-brand hover:underline">
-          {parcel.trackingNo}
-        </Link>
-      </TableCell>
-      <TableCell>
-        <Badge variant={getStatusBadgeVariant(currentStatus)} className="text-[10px] uppercase font-semibold">
-          {formatStatus(currentStatus)}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <span className="truncate max-w-[100px] text-foreground font-medium">
-            {parcel.pickupCity || parcel.pickupAddress}
-          </span>
-          <ArrowRight className="h-3 w-3 shrink-0" />
-          <span className="truncate max-w-[100px]">
-            {parcel.dropoffCity || parcel.dropoffAddress}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="text-xs font-semibold text-right tabular">
-        {Number(parcel.feeLkr).toFixed(2)}
-      </TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Link href={`/track/${encodeURIComponent(parcel.trackingNo)}`} aria-label={`Track ${parcel.trackingNo}`}>
-            <ExternalLink className="h-4 w-4 text-brand" />
-          </Link>
-          <a href={`/api/v1/parcels/${parcel.id}/receipt.pdf`} aria-label={`Download receipt for ${parcel.trackingNo}`}>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </a>
-          <a href={`/api/v1/parcels/${parcel.id}/label.pdf`} aria-label={`Download label for ${parcel.trackingNo}`}>
-            <QrCode className="h-4 w-4 text-muted-foreground" />
-          </a>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-}
 
 export default function CustomerDashboard() {
   const me = useMe();
@@ -128,13 +55,6 @@ export default function CustomerDashboard() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Queries & Mutations
-  const parcelsQuery = useQuery({
-    queryKey: ["my-parcels"],
-    queryFn: () => api<ParcelResponse[]>("/parcels/mine"),
-  });
-  const parcelTopics = parcelsQuery.data?.map((parcel) => `/topic/parcels/${parcel.id}`) ?? [];
-  const liveUpdates = useLiveUpdates<TrackingView>(parcelTopics);
-
   const quoteMutation = useMutation({
     mutationFn: (req: QuoteRequest) =>
       api<QuoteResponse>("/parcels/quote", {
@@ -248,12 +168,10 @@ export default function CustomerDashboard() {
     <div className="space-y-8">
       <PageHeading
         title={`Hello, ${me.data?.name.split(" ")[0] ?? "Customer"}`}
-        intro="Calculate delivery fees, book island-wide courier shipments, and track your active parcels in real time."
+        intro="Get a price first, then book a delivery to anywhere on the island."
       />
 
-      <div className="grid gap-8 2xl:grid-cols-12">
-        {/* Left Column: Book a Parcel or Booking Confirmation */}
-        <div className="2xl:col-span-5 space-y-6">
+      <div className="max-w-3xl space-y-6">
           {bookingSuccess ? (
             /* Confirmation Screen with QR code, Track & Receipt links */
             <Card className="border-2 border-emerald-500/40 bg-card shadow-md">
@@ -325,6 +243,14 @@ export default function CustomerDashboard() {
                     <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
                     Download Parcel Label PDF
                   </a>
+
+                  <Link
+                    href="/customer/deliveries"
+                    className="flex items-center justify-center gap-2 w-full rounded-lg border border-input bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                    View My Deliveries
+                  </Link>
 
                   <Button
                     type="button"
@@ -582,60 +508,6 @@ export default function CustomerDashboard() {
               </CardContent>
             </Card>
           )}
-        </div>
-
-        {/* Right Column: Active Deliveries / My Parcels */}
-        <div className="2xl:col-span-7 space-y-4">
-          <Card className="border-2 shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>My Deliveries</CardTitle>
-                  <CardDescription>
-                    Live tracking and delivery status of all parcels booked under your account.
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="font-mono text-xs">
-                  {parcelsQuery.data ? `${parcelsQuery.data.length} total` : "Loading…"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {parcelsQuery.isPending ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  <Clock className="mx-auto mb-2 h-6 w-6 animate-spin text-muted-foreground/60" />
-                  Loading your parcels…
-                </div>
-              ) : parcelsQuery.data && parcelsQuery.data.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Tracking No</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs">Route</TableHead>
-                      <TableHead className="text-xs text-right">Fee (LKR)</TableHead>
-                      <TableHead className="text-xs text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parcelsQuery.data.map((parcel) => (
-                      <CustomerParcelRow
-                        key={parcel.id}
-                        parcel={parcel}
-                        tracking={liveUpdates.data[`/topic/parcels/${parcel.id}`]}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
-                  <Package className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  No parcels booked yet. Use the booking form on the left to schedule your first delivery!
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
