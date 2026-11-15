@@ -23,7 +23,7 @@ export default function Home() {
         <div>
           <h1 className="display text-balance text-[2.6rem] sm:text-6xl xl:text-7xl">
             From Colombo to Jaffna, know where{" "}
-            <span className="box-decoration-clone bg-[linear-gradient(transparent_62%,var(--tape)_62%,var(--tape)_92%,transparent_92%)]">
+            <span className="box-decoration-clone bg-[linear-gradient(transparent_84%,var(--tape)_84%,var(--tape)_93%,transparent_93%)]">
               your parcel
             </span>{" "}
             is.
