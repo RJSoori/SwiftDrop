@@ -22,6 +22,11 @@ describe("today's courier deliveries response schema", () => {
     expect(todaysDeliveriesSchema.parse([validDelivery])).toEqual([validDelivery]);
   });
 
+  it("keeps the tracking number, which is what the courier sees", () => {
+    const withTracking = { ...validDelivery, trackingNo: "SD-20261114-ABC123" };
+    expect(todaysDeliveriesSchema.parse([withTracking])).toEqual([withTracking]);
+  });
+
   it("accepts an empty delivery list", () => {
     expect(todaysDeliveriesSchema.parse([])).toEqual([]);
   });

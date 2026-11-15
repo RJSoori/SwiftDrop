@@ -67,7 +67,7 @@ export default function CourierParcelDetailPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
-                  <p className="mt-1 break-all font-semibold tabular">{delivery.data.parcelId}</p>
+                  <p className="mt-1 break-all font-semibold tabular">{delivery.data.trackingNo ?? delivery.data.parcelId}</p>
                 </div>
                 <span className="w-fit shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">
                   {STATUS_LABELS[delivery.data.status]}

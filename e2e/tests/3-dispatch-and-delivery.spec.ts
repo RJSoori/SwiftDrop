@@ -60,8 +60,8 @@ test.describe("Scenario 3: dispatch, live tracking and delivery with photo and O
   test("both parcels appear in the courier app", async ({ page }) => {
     await loginUi(page, ACCOUNTS.courier);
     await expect(page).toHaveURL(/\/courier/);
-    for (const parcelId of [customerParcel.id, merchantParcel.parcelId]) {
-      await expect(page.getByLabel(new RegExp(`View parcel ${parcelId}`))).toBeVisible();
+    for (const trackingNo of [customerParcel.trackingNo, merchantParcel.trackingNo]) {
+      await expect(page.getByLabel(new RegExp(`View parcel ${trackingNo}`))).toBeVisible();
     }
   });
 
