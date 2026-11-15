@@ -307,29 +307,29 @@ class CourierServiceTest {
     void listsCurrentCourierDeliveriesAndMarksFinishedStatuses() {
         UUID failedParcel = UUID.randomUUID();
         when(assignmentLookup.findTodaysDeliveries(courierId)).thenReturn(List.of(
-                new AssignedDelivery(parcelId, "IN_TRANSIT"),
+                new AssignedDelivery(parcelId, "IN_TRANSIT", "SD-20261114-ABC123"),
                 new AssignedDelivery(proofId, "DELIVERED"),
                 new AssignedDelivery(failedParcel, "FAILED")));
 
         List<DeliverySummary> result = courierService.todaysDeliveries();
 
         assertEquals(List.of(
-                new DeliverySummary(parcelId, "IN_TRANSIT", false),
-                new DeliverySummary(proofId, "DELIVERED", true),
-                new DeliverySummary(failedParcel, "FAILED", true)), result);
+                new DeliverySummary(parcelId, "SD-20261114-ABC123", "IN_TRANSIT", false),
+                new DeliverySummary(proofId, null, "DELIVERED", true),
+                new DeliverySummary(failedParcel, null, "FAILED", true)), result);
         verify(assignmentLookup).findTodaysDeliveries(courierId);
     }
 
     @Test
     void returnsAssignedParcelDetailsWithContactData() {
         when(assignmentLookup.findAssignment(courierId, parcelId))
-                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT")));
+                .thenReturn(Optional.of(new AssignedDelivery(parcelId, "IN_TRANSIT", "SD-20261114-ABC123")));
         when(parcelClient.getContact(parcelId))
                 .thenReturn(new ParcelContact("Recipient", "Recipient phone", "12 Example Road", "Colombo"));
 
         DeliveryDetails details = courierService.deliveryDetails(parcelId);
 
-        assertEquals(new DeliveryDetails(parcelId, "IN_TRANSIT", "Recipient", "Recipient phone",
+        assertEquals(new DeliveryDetails(parcelId, "SD-20261114-ABC123", "IN_TRANSIT", "Recipient", "Recipient phone",
                 "12 Example Road", "Colombo"), details);
     }
 
@@ -413,6 +413,11 @@ class CourierServiceTest {
             @Override
             public String getStatus() {
                 return status;
+            }
+
+            @Override
+            public String getTrackingNo() {
+                return "SD-20261114-ABC123";
             }
         };
     }

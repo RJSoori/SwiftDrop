@@ -21,6 +21,8 @@ class RepositoryAssignmentLookupTest {
 
     private final AssignmentRepository assignmentRepository = mock(AssignmentRepository.class);
     private final UUID courierId = UUID.randomUUID();
+    private static final String TRACKING_NO = "SD-20261114-ABC123";
+
     private final UUID parcelId = UUID.randomUUID();
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-14T09:00:00Z"), ZoneOffset.UTC);
     private final RepositoryAssignmentLookup lookup = new RepositoryAssignmentLookup(assignmentRepository, clock);
@@ -34,8 +36,8 @@ class RepositoryAssignmentLookupTest {
                 .thenReturn(List.of(active, completed));
 
         assertEquals(List.of(
-                new AssignedDelivery(parcelId, "IN_TRANSIT"),
-                new AssignedDelivery(completed.getParcelId(), "DELIVERED")),
+                new AssignedDelivery(parcelId, "IN_TRANSIT", TRACKING_NO),
+                new AssignedDelivery(completed.getParcelId(), "DELIVERED", TRACKING_NO)),
                 lookup.findTodaysDeliveries(courierId));
 
         verify(assignmentRepository).findTodaysDeliveriesByCourierId(
@@ -51,7 +53,7 @@ class RepositoryAssignmentLookupTest {
         when(assignmentRepository.findActiveDeliveryByCourierIdAndParcelId(courierId, parcelId))
                 .thenReturn(Optional.empty());
 
-        assertEquals(Optional.of(new AssignedDelivery(parcelId, "OUT_FOR_DELIVERY")),
+        assertEquals(Optional.of(new AssignedDelivery(parcelId, "OUT_FOR_DELIVERY", TRACKING_NO)),
                 lookup.findAssignment(courierA, parcelId));
         assertEquals(Optional.empty(), lookup.findAssignment(courierId, parcelId));
 
@@ -69,6 +71,11 @@ class RepositoryAssignmentLookupTest {
             @Override
             public String getStatus() {
                 return status;
+            }
+
+            @Override
+            public String getTrackingNo() {
+                return TRACKING_NO;
             }
         };
     }

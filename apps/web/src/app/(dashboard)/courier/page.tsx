@@ -40,7 +40,7 @@ export default function CourierDashboard() {
   const active = deliveries.data?.filter((delivery) => !delivery.completed) ?? [];
   const completed = deliveries.data?.filter((delivery) => delivery.completed) ?? [];
   const visible = (tab === "active" ? active : completed).filter((delivery) =>
-    delivery.parcelId.toLowerCase().includes(search.trim().toLowerCase()),
+    (delivery.trackingNo ?? delivery.parcelId).toLowerCase().includes(search.trim().toLowerCase()),
   );
   const requestError = getRequestError(deliveries.error);
 
@@ -64,9 +64,9 @@ export default function CourierDashboard() {
       <div className="mt-8 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <FormField
           id="delivery-search"
-          label="Search by parcel ID"
+          label="Search by tracking number"
           type="search"
-          placeholder="Enter a parcel ID"
+          placeholder="Enter a tracking number"
           value={search}
           onChange={(event) => setSearch(event.currentTarget.value)}
         />
@@ -123,7 +123,7 @@ export default function CourierDashboard() {
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {search.trim()
-                  ? "Try a different parcel ID."
+                  ? "Try a different tracking number."
                   : tab === "active"
                     ? "New assignments will show up here automatically."
                     : "Your finished deliveries will appear here."}
@@ -180,12 +180,12 @@ function DeliveryCard({ delivery }: { delivery: DeliverySummary }) {
     <Link
       href={`/courier/deliveries/${encodeURIComponent(delivery.parcelId)}`}
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      aria-label={`View parcel ${delivery.parcelId}, ${STATUS_LABELS[delivery.status]}`}
+      aria-label={`View parcel ${delivery.trackingNo ?? delivery.parcelId}, ${STATUS_LABELS[delivery.status]}`}
     >
       <Card className="flex min-w-0 flex-col gap-3 p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Parcel</p>
-          <p className="mt-1 break-all font-semibold tabular">{delivery.parcelId}</p>
+          <p className="mt-1 break-all font-semibold tabular">{delivery.trackingNo ?? delivery.parcelId}</p>
         </div>
         <span className={`w-fit shrink-0 rounded-full px-3 py-1 text-sm font-medium ${statusColor}`}>
           {STATUS_LABELS[delivery.status]}

@@ -14,13 +14,13 @@ import java.util.UUID;
 public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     Optional<Assignment> findByParcelIdAndUnassignedAtIsNull(UUID parcelId);
 
-    @Query("select p.parcelId as parcelId, p.status as status from Assignment a, ParcelQueueEntry p " +
+    @Query("select p.parcelId as parcelId, p.status as status, p.trackingNo as trackingNo from Assignment a, ParcelQueueEntry p " +
             "where a.parcelId = p.parcelId and a.parcelId = :parcelId and a.courierId = :courierId " +
             "and a.unassignedAt is null")
     Optional<DeliveryProjection> findActiveDeliveryByCourierIdAndParcelId(@Param("courierId") UUID courierId,
                                                                           @Param("parcelId") UUID parcelId);
 
-    @Query("select distinct p.parcelId as parcelId, p.status as status from Assignment a, ParcelQueueEntry p " +
+    @Query("select distinct p.parcelId as parcelId, p.status as status, p.trackingNo as trackingNo from Assignment a, ParcelQueueEntry p " +
             "where a.parcelId = p.parcelId and a.courierId = :courierId and a.unassignedAt is null " +
             "and (p.status not in :terminalStatuses or p.updatedAt >= :startOfDay)")
     List<DeliveryProjection> findTodaysDeliveriesByCourierId(@Param("courierId") UUID courierId,
@@ -36,5 +36,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     interface DeliveryProjection {
         UUID getParcelId();
         String getStatus();
+        String getTrackingNo();
     }
 }

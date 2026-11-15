@@ -39,7 +39,11 @@ public final class CourierModels {
         OTP_ALREADY_VERIFIED
     }
 
-    public record AssignedDelivery(UUID parcelId, String status) {
+    /** {@code trackingNo} is what couriers and customers see; it is null only for the stub lookup. */
+    public record AssignedDelivery(UUID parcelId, String status, String trackingNo) {
+        public AssignedDelivery(UUID parcelId, String status) {
+            this(parcelId, status, null);
+        }
     }
 
     public record ParcelContact(String recipientName, String recipientPhone, String dropoffAddress, String dropoffCity) {
@@ -51,12 +55,13 @@ public final class CourierModels {
     public record NotificationReceipt(UUID id) {
     }
 
-    public record DeliverySummary(UUID parcelId, String status, boolean completed) {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record DeliverySummary(UUID parcelId, String trackingNo, String status, boolean completed) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record DeliveryDetails(UUID parcelId, String status, String recipientName, String recipientPhone,
-                                 String dropoffAddress, String dropoffCity) {
+    public record DeliveryDetails(UUID parcelId, String trackingNo, String status, String recipientName,
+                                 String recipientPhone, String dropoffAddress, String dropoffCity) {
     }
 
     public record ProofUploadResponse(UUID proofId) {
