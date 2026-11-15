@@ -43,7 +43,10 @@ export function roleForPath(pathname: string): Role | undefined {
 }
 
 export const NAV: Record<Role, { href: string; label: string }[]> = {
-  CUSTOMER: [{ href: "/customer", label: "Overview" }],
+  CUSTOMER: [
+    { href: "/customer", label: "Book a delivery" },
+    { href: "/customer/deliveries", label: "My deliveries" },
+  ],
   MERCHANT: [
     { href: "/merchant", label: "Orders" },
     { href: "/merchant/webhooks", label: "Webhooks" },

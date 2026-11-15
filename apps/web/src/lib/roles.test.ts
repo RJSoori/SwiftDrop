@@ -11,6 +11,13 @@ describe("dashboard navigation", () => {
     }
   });
 
+  it("gives customers a booking page and a deliveries page", () => {
+    expect(NAV.CUSTOMER).toEqual([
+      { href: "/customer", label: "Book a delivery" },
+      { href: "/customer/deliveries", label: "My deliveries" },
+    ]);
+  });
+
   it("links every admin page, including the audit log", () => {
     expect(NAV.ADMIN.map((item) => item.href)).toEqual([
       "/admin",
