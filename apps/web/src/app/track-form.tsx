@@ -24,13 +24,13 @@ export function TrackForm() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border-2 border-foreground bg-card shadow-[6px_6px_0_0_var(--foreground)]">
+    <div className="relative overflow-hidden rounded-xl border-2 border-foreground bg-card shadow-[6px_6px_0_0_var(--tape)]">
       <div className="flex items-stretch">
         <div aria-hidden className="barcode w-14 shrink-0 text-foreground sm:w-20" />
         <div className="flex-1 p-5 sm:p-7">
           <div className="flex items-baseline justify-between gap-4 border-b-2 border-dashed border-border pb-3">
             <span className="display text-xl">Waybill</span>
-            <span className="text-sm text-muted-foreground">SwiftDrop Express</span>
+            <span className="rounded-sm bg-tape px-2 py-0.5 text-xs font-semibold text-sidebar-primary-foreground">SwiftDrop Express</span>
           </div>
           <form onSubmit={handleTrack}>
             <label htmlFor="waybill" className="mt-5 block text-sm font-medium">
