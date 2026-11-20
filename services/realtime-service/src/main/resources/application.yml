@@ -1,0 +1,45 @@
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:realtime-service}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop?currentSchema=realtime}
+    username: ${DB_USERNAME:realtime_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: realtime
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    properties:
+      hibernate.default_schema: realtime
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # A failed message is dead-lettered to realtime.q.dlq, never requeued in a loop.
+        default-requeue-rejected: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+swiftdrop:
+  parcel-service:
+    url: ${PARCEL_SERVICE_URL:http://parcel-service:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}

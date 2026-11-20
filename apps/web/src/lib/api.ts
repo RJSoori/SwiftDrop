@@ -23,7 +23,7 @@ type ProblemDetail = {
   errors?: { field: string; message: string }[];
 };
 
-type ApiInit = Omit<RequestInit, "body"> & { json?: unknown };
+type ApiInit = Omit<RequestInit, "body"> & { body?: BodyInit | null; json?: unknown };
 
 // Endpoints where a 401 means "bad credentials" or "session over", not "access token expired".
 const NO_REFRESH = new Set(["/auth/login", "/auth/signup", "/auth/signup/merchant", "/auth/refresh"]);
@@ -40,12 +40,12 @@ function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
-function send(path: string, { json, headers, ...init }: ApiInit): Promise<Response> {
+function send(path: string, { json, body, headers, ...init }: ApiInit): Promise<Response> {
   return fetch(`/api/v1${path}`, {
     ...init,
     credentials: "same-origin",
     headers: json === undefined ? headers : { "Content-Type": "application/json", ...headers },
-    body: json === undefined ? undefined : JSON.stringify(json),
+    body: json === undefined ? body : JSON.stringify(json),
   });
 }
 
@@ -83,6 +83,51 @@ export type User = {
   merchantStatus?: MerchantStatus;
 };
 
+/** Stable page shape from auth-service admin endpoints. `page` is zero-based. */
+export type Page<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number };
+
+export type UserStatus = "ACTIVE" | "DISABLED";
+
+/** GET /auth/admin/users row. The phone is always masked by the server, e.g. +9477*****67. */
+export type AdminUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  roles: Role[];
+  status: UserStatus;
+  merchantStatus?: MerchantStatus;
+  createdAt: string;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  actorId?: string;
+  actorEmail?: string;
+  action: string;
+  target: string;
+  occurredAt: string;
+};
+
+/** auth-service credentials package (M2). API_KEY: sent as X-API-Key. CLIENT: OAuth 2.0 client-credentials pair. */
+export type ApiCredentialType = "API_KEY" | "CLIENT";
+
+export type ApiCredential = {
+  id: string;
+  type: ApiCredentialType;
+  name: string;
+  /** Visible start of an API key; for a CLIENT the full client_id. */
+  prefix: string;
+  clientId?: string;
+  scopes: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+};
+
+/** POST response: the only time the secret is ever returned. */
+export type CreatedApiCredential = { credential: ApiCredential; secret: string };
+
 export type MerchantApplication = {
   id: string;
   email: string;
@@ -91,4 +136,176 @@ export type MerchantApplication = {
   registrationNo: string;
   status: MerchantStatus;
   createdAt: string;
+  reviewedAt?: string;
+};
+
+export type ParcelStatus =
+  | "CREATED"
+  | "PICKED_UP"
+  | "AT_ORIGIN_HUB"
+  | "IN_TRANSIT"
+  | "AT_DEST_HUB"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "FAILED"
+  | "RETURNED";
+
+export type ParcelResponse = {
+  id: string;
+  trackingNo: string;
+  origin?: string;
+  customerId: string;
+  merchantId?: string;
+  merchantOrderRef?: string;
+  courierId?: string;
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+  pickupCity?: string;
+  pickupAddress: string;
+  dropoffCity?: string;
+  dropoffAddress: string;
+  recipientName?: string;
+  weightKg: number;
+  size: string;
+  serviceType?: string;
+  feeLkr: number;
+  currentStatus: ParcelStatus;
+  version?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ParcelStatusHistory = {
+  id: string;
+  parcelId: string;
+  fromStatus?: ParcelStatus;
+  toStatus: ParcelStatus;
+  actorId?: string;
+  note?: string;
+  proofUrl?: string;
+  failureReason?: string;
+  occurredAt: string;
+};
+
+export type ParcelDetailResponse = {
+  parcel: ParcelResponse;
+  history: ParcelStatusHistory[];
+};
+
+export type TrackingView = {
+  trackingNo: string;
+  currentStatus: ParcelStatus;
+  pickupCity: string | null;
+  dropoffCity: string | null;
+  timeline: {
+    status: ParcelStatus;
+    occurredAt: string;
+  }[];
+  updatedAt: string;
+};
+
+export type QuoteRequest = {
+  weightKg?: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  strategy?: "WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS";
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+  /** Coordinates pick the delivery zones and their pricing rule; without them the default rates apply. */
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  /** LARGE parcels pay the zone's size multiplier. */
+  size?: string;
+};
+
+export type QuoteResponse = {
+  feeLkr: number;
+  actualWeightKg: number;
+  volumetricWeightKg: number;
+  chargeableWeightKg: number;
+  strategy: string;
+  /** Set when the quote was priced by a zone rule. */
+  pickupZoneId?: string;
+  pickupZoneName?: string;
+  dropoffZoneId?: string;
+  dropoffZoneName?: string;
+  baseFeeLkr?: number;
+  perKgFeeLkr?: number;
+  sizeMultiplier?: number;
+};
+
+export type CreateParcelRequest = {
+  pickupAddress: string;
+  dropoffAddress: string;
+  weightKg: number;
+  pickupCity?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffCity?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  recipientName?: string;
+  recipientPhone?: string;
+  serviceType?: "STANDARD" | "EXPRESS";
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  size?: string;
+  strategy?: "WEIGHT_TIERED" | "FLAT_RATE" | "EXPRESS";
+  pickupZoneId?: string;
+  dropoffZoneId?: string;
+  merchantId?: string;
+};
+
+export type MerchantOrder = {
+  id: string;
+  merchantId: string;
+  parcelId: string;
+  trackingNo: string;
+  orderRef?: string;
+  status: string;
+  feeLkr: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MerchantOrderDetail = MerchantOrder & {
+  pickupAddress?: string;
+  pickupCity?: string;
+  dropoffAddress?: string;
+  dropoffCity?: string;
+  recipientName?: string;
+  weightKg?: number;
+  serviceType?: string;
+  history: {
+    fromStatus?: string;
+    toStatus: string;
+    note?: string;
+    occurredAt: string;
+  }[];
+};
+
+export type WebhookEndpoint = {
+  id: string;
+  merchantId: string;
+  url: string;
+  secret?: string;
+  active: boolean;
+  createdAt: string;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  merchantId: string;
+  eventId: string;
+  attempt: number;
+  state: "PENDING" | "DELIVERED" | "FAILED" | "DEAD";
+  statusCode?: number;
+  lastError?: string;
+  nextRetryAt?: string;
+  createdAt: string;
+  deliveredAt?: string;
 };

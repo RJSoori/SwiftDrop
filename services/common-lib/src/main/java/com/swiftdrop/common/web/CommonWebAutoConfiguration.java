@@ -1,6 +1,7 @@
 package com.swiftdrop.common.web;
 
 import com.swiftdrop.common.error.GlobalExceptionHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -14,5 +15,10 @@ public class CommonWebAutoConfiguration {
     @Bean
     public RequestIdFilter requestIdFilter() {
         return new RequestIdFilter();
+    }
+
+    @Bean
+    public InternalTokenInterceptor internalTokenInterceptor(@Value("${INTERNAL_TOKEN:}") String token) {
+        return new InternalTokenInterceptor(token);
     }
 }

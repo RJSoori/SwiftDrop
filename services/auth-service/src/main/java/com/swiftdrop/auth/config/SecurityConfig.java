@@ -3,6 +3,7 @@ package com.swiftdrop.auth.config;
 import com.swiftdrop.auth.oauth.EncryptedCookieAuthorizationRequestRepository;
 import com.swiftdrop.auth.oauth.GoogleLoginHandlers;
 import com.swiftdrop.common.security.HeaderOrCookieBearerTokenResolver;
+import com.swiftdrop.common.security.InternalTokenAuthorizationManager;
 import com.swiftdrop.common.security.ProblemDetailAuthHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,10 +39,16 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/signup/merchant"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/login"),
             PATHS.matcher(HttpMethod.POST, "/api/v1/auth/refresh"),
+            // OAuth 2.0 client-credentials grant: the client authenticates with its id and secret, not a JWT
+            PATHS.matcher(HttpMethod.POST, "/api/v1/auth/oauth/token"),
             PATHS.matcher("/api/v1/auth/oauth2/**"),
             PATHS.matcher("/.well-known/jwks.json"),
             PATHS.matcher("/actuator/health"),
             PATHS.matcher("/actuator/health/**"),
+            // springdoc: http://localhost:8081/swagger-ui.html (not routed by the gateway)
+            PATHS.matcher("/v3/api-docs/**"),
+            PATHS.matcher("/swagger-ui.html"),
+            PATHS.matcher("/swagger-ui/**"),
             PATHS.matcher("/error"));
 
     private static final OAuth2AuthorizedClientRepository DISCARD_AUTHORIZED_CLIENTS = new OAuth2AuthorizedClientRepository() {
@@ -66,11 +73,18 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
-    /** Public endpoints ignore tokens, so a stale sd_access cookie cannot turn /login or /refresh into a 401. */
+    /** Service-to-service endpoints, guarded by X-Internal-Token instead of a JWT. */
+    static final RequestMatcher INTERNAL_ENDPOINTS = PATHS.matcher(InternalTokenAuthorizationManager.PATH_PATTERN);
+
+    /**
+     * Public and internal endpoints ignore tokens, so a stale sd_access cookie cannot turn /login or /refresh into a
+     * 401, and a stray Authorization header cannot break a service call that carries a valid internal token.
+     */
     @Bean
     public BearerTokenResolver bearerTokenResolver() {
         HeaderOrCookieBearerTokenResolver delegate = new HeaderOrCookieBearerTokenResolver();
-        return request -> PUBLIC_ENDPOINTS.matches(request) ? null : delegate.resolve(request);
+        return request -> PUBLIC_ENDPOINTS.matches(request) || INTERNAL_ENDPOINTS.matches(request)
+                ? null : delegate.resolve(request);
     }
 
     /** Google sign-in starts at /api/v1/auth/oauth2/authorize/google and always uses PKCE (S256). */
@@ -86,6 +100,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter,
                                                    BearerTokenResolver tokenResolver,
                                                    ProblemDetailAuthHandler authHandler,
+                                                   InternalTokenAuthorizationManager internalToken,
                                                    OAuth2AuthorizationRequestResolver pkceResolver,
                                                    EncryptedCookieAuthorizationRequestRepository authRequestCookie,
                                                    GoogleLoginHandlers googleLogin) throws Exception {
@@ -94,7 +109,9 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(INTERNAL_ENDPOINTS).access(internalToken)
                         .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/auth/merchant/**").hasRole("MERCHANT")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o
                         .jwt(j -> j.jwtAuthenticationConverter(jwtConverter))

@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Brand } from "@/components/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { TrackForm } from "./track-form";
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col border-t-[6px] border-tape">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-5">
         <Brand />
         <nav className="flex items-center gap-2">
@@ -21,7 +22,11 @@ export default function Home() {
       <main className="mx-auto grid w-full max-w-6xl flex-1 content-center gap-10 px-5 pb-16 pt-6 lg:grid-cols-[1.3fr_1fr] lg:items-center">
         <div>
           <h1 className="display text-balance text-[2.6rem] sm:text-6xl xl:text-7xl">
-            From Colombo to Jaffna, know where your parcel is.
+            From Colombo to Jaffna, know where{" "}
+            <span className="box-decoration-clone bg-[linear-gradient(transparent_84%,var(--tape)_84%,var(--tape)_93%,transparent_93%)]">
+              your parcel
+            </span>{" "}
+            is.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">
             SwiftDrop collects, sorts and delivers parcels island-wide. Enter a waybill number to see where a delivery
@@ -29,12 +34,17 @@ export default function Home() {
           </p>
         </div>
 
-        <TrackForm />
+        <Suspense fallback={<div className="h-48 rounded-xl border-2 border-foreground bg-card animate-pulse" />}>
+          <TrackForm />
+        </Suspense>
       </main>
 
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm text-muted-foreground">
-          <p>Selling online? Send your orders with SwiftDrop.</p>
+          <p className="flex items-center gap-2.5">
+            <span aria-hidden className="h-2.5 w-4 shrink-0 -skew-x-12 rounded-[2px] bg-tape" />
+            Selling online? Send your orders with SwiftDrop.
+          </p>
           <Link href="/signup/merchant" className="font-medium text-brand underline-offset-4 hover:underline">
             Open a merchant account
           </Link>

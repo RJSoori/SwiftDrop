@@ -17,7 +17,13 @@ export const ROLE_LABEL: Record<Role, string> = {
   CUSTOMER: "Customer",
 };
 
-const PRIORITY: Role[] = ["ADMIN", "DISPATCHER", "COURIER", "MERCHANT", "CUSTOMER"];
+const PRIORITY: Role[] = [
+  "ADMIN",
+  "DISPATCHER",
+  "COURIER",
+  "MERCHANT",
+  "CUSTOMER",
+];
 
 export function primaryRole(roles: readonly string[]): Role | undefined {
   return PRIORITY.find((r) => roles.includes(r));
@@ -31,17 +37,54 @@ export function homeFor(roles: readonly string[]): string {
 
 /** The role a dashboard path belongs to, or undefined for public pages. */
 export function roleForPath(pathname: string): Role | undefined {
-  return PRIORITY.find((r) => pathname === DASHBOARD[r] || pathname.startsWith(DASHBOARD[r] + "/"));
+  return PRIORITY.find(
+    (r) => pathname === DASHBOARD[r] || pathname.startsWith(DASHBOARD[r] + "/"),
+  );
 }
 
 export const NAV: Record<Role, { href: string; label: string }[]> = {
-  CUSTOMER: [{ href: "/customer", label: "Overview" }],
-  MERCHANT: [{ href: "/merchant", label: "Overview" }],
-  COURIER: [{ href: "/courier", label: "Overview" }],
-  DISPATCHER: [{ href: "/dispatcher", label: "Overview" }],
+  CUSTOMER: [
+    { href: "/customer", label: "Book a delivery" },
+    { href: "/customer/deliveries", label: "My deliveries" },
+  ],
+  MERCHANT: [
+    { href: "/merchant", label: "Orders" },
+    { href: "/merchant/webhooks", label: "Webhooks" },
+    { href: "/merchant/api-keys", label: "API keys" },
+  ],
+  COURIER: [{ href: "/courier", label: "Today's deliveries" }],
+  DISPATCHER: [
+    { href: "/dispatcher", label: "Overview" },
+    { href: "/dispatcher/reports", label: "Reports" },
+  ],
   ADMIN: [
     { href: "/admin", label: "Overview" },
-    { href: "/admin/merchants", label: "Merchant applications" },
-    { href: "/admin/users", label: "Staff accounts" },
+    { href: "/admin/merchants", label: "Merchants" },
+    { href: "/admin/users", label: "Users" },
+    { href: "/admin/zones", label: "Zones & pricing" },
+    { href: "/admin/reports", label: "Reports" },
+    { href: "/admin/audit-log", label: "Audit log" },
   ],
 };
+
+/**
+ * Roles from the sd_access cookie. The JWT is decoded, not verified: this only decides which page or link to
+ * show, and every API call is verified by the gateway and the services.
+ */
+export function rolesFromToken(token: string | undefined): string[] | null {
+  const payload = token?.split(".")[1];
+  if (!payload) return null;
+  try {
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return Array.isArray(json.roles) ? json.roles : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where the public tracking page sends the visitor back to: their own list when logged in, the search otherwise. */
+export function trackingBackLink(roles: readonly string[] | null): { href: string; label: string } {
+  if (roles?.includes("CUSTOMER")) return { href: "/customer/deliveries", label: "My deliveries" };
+  if (roles?.includes("MERCHANT")) return { href: "/merchant", label: "My orders" };
+  return { href: "/", label: "Track another parcel" };
+}

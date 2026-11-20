@@ -35,8 +35,12 @@ public class SecurityConfig {
 
     static final ServerWebExchangeMatcher PUBLIC_ENDPOINTS = new OrServerWebExchangeMatcher(
             ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST,
-                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh"),
-            ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, "/api/v1/auth/oauth2/**"),
+                    "/api/v1/auth/signup", "/api/v1/auth/signup/merchant", "/api/v1/auth/login", "/api/v1/auth/refresh",
+                    // OAuth 2.0 client credentials (M2): the shop's system authenticates with its client id and secret
+                    "/api/v1/auth/oauth/token"),
+            ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, "/api/v1/auth/oauth2/**", "/api/v1/tracking/**"),
+            // realtime-service checks the JWT itself when the WebSocket connects
+            ServerWebExchangeMatchers.pathMatchers("/ws/**"),
             ServerWebExchangeMatchers.pathMatchers("/.well-known/**", "/actuator/health", "/actuator/health/**"));
 
     private static final String ACCESS_COOKIE = "sd_access";
@@ -53,7 +57,13 @@ public class SecurityConfig {
                         .matchers(PUBLIC_ENDPOINTS).permitAll()
                         .pathMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
                         .pathMatchers("/api/v1/dispatch/**").hasAnyRole("DISPATCHER", "ADMIN")
+                        .pathMatchers("/api/v1/courier/**").hasRole("COURIER")
                         .pathMatchers("/api/v1/merchant/**").hasRole("MERCHANT")
+                        .pathMatchers("/api/v1/quotes/**").hasAnyRole("CUSTOMER", "MERCHANT", "DISPATCHER", "ADMIN")
+                        .pathMatchers("/api/v1/admin/zones/**").hasRole("ADMIN")
+                        .pathMatchers("/api/v1/reports/**").hasAnyRole("DISPATCHER", "ADMIN")
+                        .pathMatchers("/api/v1/notifications/**").hasRole("ADMIN")
+                        .pathMatchers("/api/v1/assistant/**").hasRole("CUSTOMER")
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(o -> o
                         .bearerTokenConverter(headerOrCookieToken())

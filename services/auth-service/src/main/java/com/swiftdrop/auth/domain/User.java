@@ -105,4 +105,8 @@ public class User {
     public Set<Role> getRoles() {
         return roles;
     }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }

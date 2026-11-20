@@ -1,103 +1,56 @@
 # SwiftDrop
 
-SwiftDrop is a parcel delivery and courier management system for Sri Lanka, built as our group assignment.
+A parcel delivery and courier management system, built by Group 03 (Zentrix) for IN3101 Enterprise Application Development. Customers book and track parcels, shops send orders through a merchant API and get webhooks back, dispatchers assign parcels and couriers deliver them. It runs as Spring Boot services behind a gateway, with a Next.js web app.
 
-This first version is the base of the system. Users can sign up and log in (with email and password or with Google), each role gets its own dashboard, and the whole thing runs with Docker Compose. Parcels, dispatching, notifications and merchant webhooks will be added in the next phases.
+## What you need
 
-## User roles
+- Docker Desktop with about 8 GB of RAM
+- Node.js 24
+- Git Bash, if you're on Windows
 
-- Customer
-- Merchant (an admin has to approve the account before it can be used)
-- Courier
-- Dispatcher
-- Admin
-
-## Tech stack
-
-- Backend: Java 21, Spring Boot 3.5, Spring Cloud Gateway, Maven
-- Frontend: Next.js 15, TypeScript, Tailwind CSS
-- Database: PostgreSQL 16 with PostGIS
-- Other: RabbitMQ, Redis, Docker Compose
-
-## Services
-
-| Service | Port | What it does |
-|---|---|---|
-| web | 3000 | Next.js frontend |
-| gateway | 8080 | Sends each request to the right service and checks the login token |
-| auth-service | 8081 | Sign up, login, Google login, tokens and merchant approval |
-| parcel-service | 8082 | Not built yet, only has a test endpoint |
-| dispatch-service | 8083 | Not built yet, only has a test endpoint |
-| merchant-service | 8084 | Not built yet, only has a test endpoint |
-| notification-service | 8085 | Not built yet, connects to RabbitMQ |
-| postgres | 5432 | Database. Each service has its own schema |
-| rabbitmq | 5672 (web UI on 15672) | Message broker, will be used from phase 2 |
-| redis | - | Used by the gateway to limit login and signup attempts |
-
-The browser only talks to the web app on port 3000. The web app forwards everything under `/api` to the gateway.
-
-## How login works
-
-When you log in, auth-service sets two cookies: an access token (a JWT that lasts 15 minutes) and a refresh token (lasts 7 days). The gateway and each service check the access token on every request, and each endpoint checks the user's role. When the access token expires, the frontend gets a new one with the refresh token, so the user stays logged in.
-
-Passwords are hashed with BCrypt and phone numbers are encrypted in the database. Emails, phone numbers and tokens are hidden in the logs.
-
-## Running the project
-
-You need Docker Desktop with about 6 GB of free RAM. On Windows, use Git Bash to run the script below.
+## Setup
 
 ```bash
-cd infra/compose
-../../scripts/dev-keys.sh
-docker compose up --build
+git clone https://github.com/RJSoori/SwiftDrop.git
+cd SwiftDrop
+./scripts/reset-demo.sh
 ```
 
-`dev-keys.sh` creates `infra/compose/.env` from `.env.example` and fills in the passwords and JWT keys. It only fills values that are empty, so it's fine to run it again.
+The script creates `infra/compose/.env` with generated secrets, builds and starts everything, and seeds demo data. The first build takes about ten minutes.
 
-The first build takes a few minutes. Then open http://localhost:3000. You can run `docker compose ps` to check that all the containers are healthy.
+Then open:
 
-To stop everything, run `docker compose down`. Add `-v` if you also want to delete the database.
+- Web app: http://localhost:3000
+- Demo Store (a test merchant shop): http://localhost:4000
+- Mailpit (all emails and SMS): http://localhost:8025
 
-## Test accounts
+Run `./scripts/reset-demo.sh` again any time you want a clean start. `docker compose -f infra/compose/docker-compose.yml down` stops everything.
 
-These accounts are created automatically when the app starts (`SEED_DEMO_DATA=true` in `.env`). They all use the password stored as `SEED_PASSWORD` in `infra/compose/.env`. `dev-keys.sh` also prints it.
+## Seed accounts
+
+They all use the password in `SEED_PASSWORD` in `infra/compose/.env`.
 
 | Email | Role |
 |---|---|
-| admin@swiftdrop.test | Admin |
-| dispatcher@swiftdrop.test | Dispatcher |
-| courier1@swiftdrop.test, courier2@swiftdrop.test | Courier |
 | customer@swiftdrop.test | Customer |
 | merchant@swiftdrop.test | Merchant (approved) |
-| pending-merchant@swiftdrop.test | Merchant (waiting for approval) |
+| dispatcher@swiftdrop.test | Dispatcher |
+| courier1@swiftdrop.test, courier2@swiftdrop.test | Courier |
+| admin@swiftdrop.test | Admin |
 
-## Setting up Google login
+## Optional settings
 
-1. In Google Cloud Console, go to APIs & Services > OAuth consent screen. Create an External app and add your Google account as a test user.
-2. Go to Credentials > Create credentials > OAuth client ID and choose Web application.
-3. Add `http://localhost:3000` under Authorized JavaScript origins.
-4. Add `http://localhost:3000/api/v1/auth/oauth2/callback/google` under Authorized redirect URIs.
-5. Copy the client ID and secret into `infra/compose/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then restart auth-service with `docker compose up -d auth-service`.
+Both go in `infra/compose/.env`. After changing them, run `docker compose -f infra/compose/docker-compose.yml up -d` to apply them.
 
-New Google users are created as customers. If the Google email is verified and matches an existing account, Google login is linked to that account.
+- Google login: create an OAuth client in Google Cloud Console with the redirect URI `http://localhost:3000/api/v1/auth/oauth2/callback/google`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+- AI assistant: set `LLM_API_KEY` to a Gemini API key from Google AI Studio. Without it, the assistant gives a fixed reply.
 
 ## Tests
 
 ```bash
-mvn verify
-cd apps/web
-npm ci
-npm test
+mvn -B verify                              # backend tests and coverage (Docker must be running)
+(cd apps/web && npm ci && npm test)        # web app tests
+(cd e2e && npm ci && npx playwright test)  # end-to-end tests, against the running stack
 ```
 
-`mvn verify` needs Docker running, because some tests start a real Postgres database in a container. The coverage report is saved to `services/coverage/target/site/jacoco-aggregate/index.html`. GitHub Actions runs the tests on every push.
-
-## Folder structure
-
-```
-services/        Spring Boot services and common-lib (shared code)
-apps/web/        Next.js frontend
-infra/compose/   docker-compose.yml and .env.example
-scripts/         dev-keys.sh
-docs/            diagrams
-```
+Coverage reports end up in `services/coverage/target/site/jacoco-aggregate/index.html`.

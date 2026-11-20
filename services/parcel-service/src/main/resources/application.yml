@@ -22,9 +22,27 @@ spring:
         jwt:
           jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
           issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+# Shared transactional outbox from common-lib (relay polls parcel.outbox_events)
+swiftdrop:
+  outbox:
+    enabled: true
+  tracking:
+    public-base-url: ${TRACKING_PUBLIC_BASE_URL:http://localhost:3000/track}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  health:
+    rabbit:
+      enabled: false
+
+# Merchant callbacks require stable event envelopes and confirmed delivery.
+spring.rabbitmq.publisher-confirm-type: correlated
+spring.rabbitmq.publisher-returns: true

@@ -1,0 +1,43 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: ai-assistant-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/swiftdrop}
+    username: ${DB_USERNAME:ai_svc}
+    password: ${DB_PASSWORD:}
+  flyway:
+    schemas: ai
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: ai
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${JWT_ISSUER:http://auth-service:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+swiftdrop:
+  # Tools call our own API through the gateway with the customer's JWT
+  gateway-url: ${GATEWAY_URL:http://localhost:8080}
+  llm:
+    # gemini (default) or anthropic
+    provider: ${LLM_PROVIDER:gemini}
+    # Empty: the assistant answers with a fixed friendly reply instead of calling the model
+    api-key: ${LLM_API_KEY:}
+    # Empty: the provider's default. For gemini this can be a comma-separated list, tried in order
+    model: ${LLM_MODEL:}
+    # Empty: the provider's public API
+    base-url: ${LLM_BASE_URL:}
