@@ -99,7 +99,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(@Value("${swiftdrop.cors-allowed-origins}") List<String> origins) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(origins);
+        cors.setAllowedOriginPatterns(origins); // exact origins, or patterns like http://*.localhost:3000
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("*"));
         cors.setExposedHeaders(List.of(RequestIdFilter.HEADER));

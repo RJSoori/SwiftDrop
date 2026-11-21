@@ -258,7 +258,7 @@ services:
       REPORTING_SERVICE_URL: http://reporting-service:8087
       AI_ASSISTANT_SERVICE_URL: http://ai-assistant-service:8088
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:?run scripts/dev-keys.sh}
-      CORS_ALLOWED_ORIGINS: ${WEB_APP_URL:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${WEB_APP_URL:-http://localhost:3000},http://*.localhost:3000 # *.localhost: one login per role in one browser
     ports: ["8080:8080"]
     depends_on:
       redis: { condition: service_healthy }

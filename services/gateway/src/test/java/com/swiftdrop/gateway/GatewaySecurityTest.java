@@ -100,6 +100,7 @@ class GatewaySecurityTest {
         }
         registry.add("swiftdrop.routes.realtime", () -> "http://127.0.0.1:" + realtime.port());
         registry.add("spring.data.redis.port", () -> "1"); // no Redis in this test: the rate limiter fails open
+        registry.add("swiftdrop.cors-allowed-origins", () -> "http://localhost:3000,http://*.localhost:3000");
     }
 
     @BeforeEach
@@ -178,6 +179,19 @@ class GatewaySecurityTest {
         client.options().uri("/api/v1/parcels/ping")
                 .header(HttpHeaders.ORIGIN, "https://evil.example")
                 .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                .exchange().expectStatus().isForbidden();
+    }
+
+    @Test
+    void allowsRoleSubdomainsOfLocalhostOnly() {
+        client.options().uri("/api/v1/auth/login")
+                .header(HttpHeaders.ORIGIN, "http://merchant.localhost:3000")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .exchange().expectStatus().isOk()
+                .expectHeader().valueEquals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://merchant.localhost:3000");
+        client.options().uri("/api/v1/auth/login")
+                .header(HttpHeaders.ORIGIN, "http://merchant.localhost.evil.example:3000")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
                 .exchange().expectStatus().isForbidden();
     }
 
