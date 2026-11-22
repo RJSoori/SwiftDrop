@@ -1,0 +1,143 @@
+# SwiftDrop on Kubernetes. Install with scripts/k8s-up.sh, which passes infra/compose/.env as `dotenv`.
+
+# Contents of infra/compose/.env. Every key becomes an entry in the swiftdrop-secrets Secret.
+dotenv: ""
+
+# Images built by `docker compose build` (Docker Desktop's Kubernetes sees the same local images).
+image:
+  prefix: swiftdrop-
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Public address the browser uses. The Ingress listens on port 80, so the role addresses are
+# http://localhost, http://merchant.localhost and so on.
+webAppUrl: http://localhost
+ingress:
+  className: traefik
+  shopHost: shop.localhost # Demo Store
+  mailHost: mail.localhost # Mailpit inbox
+
+# Non-secret settings, shared by the Spring services through the swiftdrop-config ConfigMap.
+config:
+  POSTGRES_DB: swiftdrop
+  JWT_ISSUER: http://auth-service:8081
+  JWT_ACCESS_TTL: PT15M
+  JWT_REFRESH_TTL: P7D
+  COOKIE_SECURE: "false"
+  SEED_DEMO_DATA: "true"
+  LLM_PROVIDER: gemini
+  LLM_MODEL: ""
+  MAIL_FROM: no-reply@swiftdrop.test
+  MINIO_BUCKET_PROOFS: proofs
+  COURIER_NOTIFICATION_CLIENT: http
+  WEBHOOK_ALLOWED_LOCAL_HOSTS: demo-store
+  WEBHOOK_RETRY_DELAYS: PT5S,PT10S,PT20S,PT40S
+
+# Secret keys that may be missing from .env (the services have defaults for them).
+optionalSecrets: [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SEED_PASSWORD, DEMO_STORE_API_KEY, DEMO_STORE_WEBHOOK_SECRET, LLM_API_KEY]
+
+# One Deployment and one Service per app. Service names match the Compose service names, so the
+# URLs baked into the images (for example http://gateway:8080 in the web image) work unchanged.
+#   springEnv: gets the shared ConfigMap plus the broker login and internal token
+#   secretEnv: environment variable -> key in swiftdrop-secrets
+#   waitFor:   host:port pairs an init container waits for before the app starts
+apps:
+  - name: auth-service
+    port: 8081
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: auth_svc }
+    secretEnv:
+      DB_PASSWORD: AUTH_DB_PASSWORD
+      JWT_PRIVATE_KEY: JWT_PRIVATE_KEY
+      JWT_PUBLIC_KEY: JWT_PUBLIC_KEY
+      PII_ENCRYPTION_KEY: PII_ENCRYPTION_KEY
+      GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID
+      GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET
+      SEED_PASSWORD: SEED_PASSWORD
+      DEMO_STORE_API_KEY: DEMO_STORE_API_KEY
+    waitFor: [postgres:5432]
+
+  - name: parcel-service
+    port: 8082
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: parcel_svc }
+    secretEnv: { DB_PASSWORD: PARCEL_DB_PASSWORD, PII_ENCRYPTION_KEY: PII_ENCRYPTION_KEY }
+    waitFor: [postgres:5432, rabbitmq:5672]
+
+  - name: dispatch-service
+    port: 8083
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: dispatch_svc }
+    secretEnv: { DB_PASSWORD: DISPATCH_DB_PASSWORD, MINIO_ACCESS_KEY: MINIO_ROOT_USER, MINIO_SECRET_KEY: MINIO_ROOT_PASSWORD }
+    waitFor: [postgres:5432, rabbitmq:5672, minio:9000, auth-service:8081]
+
+  - name: merchant-service
+    port: 8084
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: merchant_svc }
+    secretEnv: { DB_PASSWORD: MERCHANT_DB_PASSWORD, PII_ENCRYPTION_KEY: PII_ENCRYPTION_KEY }
+    waitFor: [postgres:5432, rabbitmq:5672, redis:6379]
+
+  - name: notification-service
+    port: 8085
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: notification_svc }
+    secretEnv: { DB_PASSWORD: NOTIFICATION_DB_PASSWORD }
+    waitFor: [postgres:5432, rabbitmq:5672, mailpit:1025]
+
+  - name: realtime-service
+    port: 8086
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: realtime_svc }
+    secretEnv: { DB_PASSWORD: REALTIME_DB_PASSWORD }
+    waitFor: [postgres:5432, rabbitmq:5672, redis:6379]
+
+  - name: reporting-service
+    port: 8087
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: reporting_svc }
+    secretEnv: { DB_PASSWORD: REPORTING_DB_PASSWORD }
+    waitFor: [postgres:5432, rabbitmq:5672]
+
+  - name: ai-assistant-service
+    port: 8088
+    health: /actuator/health
+    springEnv: true
+    env: { DB_USERNAME: ai_svc }
+    secretEnv: { DB_PASSWORD: AI_DB_PASSWORD, LLM_API_KEY: LLM_API_KEY }
+    waitFor: [postgres:5432]
+
+  - name: gateway
+    port: 8080
+    health: /actuator/health
+    env: { REDIS_HOST: redis }
+    secretEnv: { INTERNAL_TOKEN: INTERNAL_TOKEN }
+    configEnv: true # service URLs, JWKS, CORS from the ConfigMap, but no broker login
+    waitFor: [redis:6379, auth-service:8081]
+
+  - name: web
+    port: 3000
+    health: /
+    waitFor: [gateway:8080]
+
+  - name: demo-store
+    port: 4000
+    health: /health
+    env: { PORT: "4000", SWIFTDROP_API_URL: http://gateway:8080 }
+    secretEnv: { DEMO_STORE_API_KEY: DEMO_STORE_API_KEY, DEMO_STORE_WEBHOOK_SECRET: DEMO_STORE_WEBHOOK_SECRET }
+
+# Every app container gets the same limits as in Compose (512 MB, a ~384 MB heap for the JVM).
+resources:
+  requests: { cpu: 100m, memory: 384Mi }
+  limits: { memory: 512Mi }
+
+storage:
+  postgres: 2Gi
+  minio: 2Gi
