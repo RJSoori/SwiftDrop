@@ -1,0 +1,22 @@
+# One entry point on port 80. The API and websocket go straight to the gateway; everything else is the web app.
+# No host on the main rule, so http://localhost and the role addresses (http://merchant.localhost etc.) all match.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: swiftdrop
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.shopHost }}
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: demo-store, port: { number: 4000 } } } }
+    - host: {{ .Values.ingress.mailHost }}
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: mailpit, port: { number: 8025 } } } }
+    - http:
+        paths:
+          - { path: /api, pathType: Prefix, backend: { service: { name: gateway, port: { number: 8080 } } } }
+          - { path: /ws, pathType: Prefix, backend: { service: { name: gateway, port: { number: 8080 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: web, port: { number: 3000 } } } }

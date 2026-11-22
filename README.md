@@ -26,6 +26,17 @@ Then open:
 
 Run `./scripts/reset-demo.sh` again any time you want a clean start. `docker compose -f infra/compose/docker-compose.yml down` stops everything.
 
+## Run on Kubernetes
+
+The Helm chart in `infra/helm/swiftdrop` deploys the whole system (web app, gateway, all services, PostgreSQL, RabbitMQ, Redis, MinIO and Mailpit) with a ConfigMap for settings, a Secret built from `infra/compose/.env`, a Service per component and a Traefik Ingress on port 80.
+
+1. In Docker Desktop, open Settings, then Kubernetes, tick Enable Kubernetes (kubeadm) and apply.
+2. Install Helm (`winget install Helm.Helm` on Windows).
+3. Run `./scripts/reset-demo.sh` once if you have no `infra/compose/.env` yet, then stop Compose with `docker compose -f infra/compose/docker-compose.yml down` to free memory.
+4. Run `./scripts/k8s-up.sh`.
+
+Then open http://localhost (role addresses work too, for example http://merchant.localhost), http://shop.localhost for the Demo Store and http://mail.localhost for Mailpit. `kubectl -n swiftdrop get pods` shows what is running, and `./scripts/k8s-up.sh --down` removes it.
+
 ## Seed accounts
 
 They all use the password in `SEED_PASSWORD` in `infra/compose/.env`.

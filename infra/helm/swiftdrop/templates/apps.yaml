@@ -1,0 +1,71 @@
+{{- $root := . }}
+{{- range .Values.apps }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  labels: { app: {{ .name }} }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .name }} }
+  template:
+    metadata:
+      labels: { app: {{ .name }} }
+      annotations:
+        # restart the pods when the settings or secrets change
+        checksum/config: {{ include (print $root.Template.BasePath "/config.yaml") $root | sha256sum }}
+    spec:
+      # Without this Kubernetes adds variables like REDIS_PORT=tcp://10.x.x.x:6379, which clash with the
+      # ${REDIS_PORT:6379} and ${RABBITMQ_PORT:5672} placeholders in the services' application.yml.
+      enableServiceLinks: false
+      {{- include "swiftdrop.waitFor" .waitFor | nindent 6 }}
+      containers:
+        - name: {{ .name }}
+          image: "{{ $root.Values.image.prefix }}{{ .name }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .port }}
+          {{- if or .springEnv .configEnv }}
+          envFrom:
+            - configMapRef: { name: swiftdrop-config }
+          {{- end }}
+          env:
+            - name: SERVER_PORT
+              value: {{ .port | quote }}
+            {{- range $k, $v := .env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if .springEnv }}
+            {{- include "swiftdrop.secretEnv" (list $root "INTERNAL_TOKEN" "INTERNAL_TOKEN") | nindent 12 }}
+            {{- include "swiftdrop.secretEnv" (list $root "SPRING_RABBITMQ_USERNAME" "RABBITMQ_USER") | nindent 12 }}
+            {{- include "swiftdrop.secretEnv" (list $root "SPRING_RABBITMQ_PASSWORD" "RABBITMQ_PASSWORD") | nindent 12 }}
+            {{- end }}
+            {{- range $k, $v := .secretEnv }}
+            {{- include "swiftdrop.secretEnv" (list $root $k $v) | nindent 12 }}
+            {{- end }}
+          resources: {{- toYaml $root.Values.resources | nindent 12 }}
+          startupProbe: # Spring services take up to a minute or two to start on a laptop
+            httpGet: { path: {{ .health }}, port: {{ .port }} }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: {{ .health }}, port: {{ .port }} }
+            periodSeconds: 10
+          livenessProbe: # port only, so a database blip does not restart every service
+            tcpSocket: { port: {{ .port }} }
+            periodSeconds: 20
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+spec:
+  selector: { app: {{ .name }} }
+  ports:
+    - port: {{ .port }}
+      targetPort: {{ .port }}
+{{- end }}
