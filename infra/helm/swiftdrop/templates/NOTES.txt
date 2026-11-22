@@ -1,0 +1,7 @@
+SwiftDrop is starting in namespace {{ .Release.Namespace }}. Watch it with:
+  kubectl -n {{ .Release.Namespace }} get pods -w
+
+Once every pod is Ready:
+  Web app      {{ .Values.webAppUrl }}  (roles: http://merchant.localhost, http://dispatcher.localhost, ...)
+  Demo Store   http://{{ .Values.ingress.shopHost }}
+  Mail inbox   http://{{ .Values.ingress.mailHost }}

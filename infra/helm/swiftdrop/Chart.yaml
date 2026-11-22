@@ -1,0 +1,6 @@
+apiVersion: v2
+name: swiftdrop
+description: SwiftDrop parcel delivery platform (web app, Spring services, PostgreSQL, RabbitMQ, Redis, MinIO, Mailpit)
+type: application
+version: 1.0.0
+appVersion: "1.0"
